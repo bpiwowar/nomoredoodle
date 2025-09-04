@@ -7,7 +7,9 @@
 		"lint:css": "stylelint source/**/*.css",
 		"lint:js": "xo",
 		"test": "run-p lint:* build",
-		"watch": "NODE_NO_WARNINGS=1 parcel watch --no-hmr"
+		"watch": "run-p watch:*",
+		"watch:parcel": "NODE_NO_WARNINGS=1 parcel watch --no-hmr",
+		"watch:tsc": "tsc --noEmit --watch"
 	},
 	"browserslist": [
 		"last 1 Chrome version",
@@ -35,11 +37,14 @@
 	"devDependencies": {
 		"@parcel/config-webextension": "^2.13.0",
 		"@parcel/resolver-default": "^2.13.0",
+		"@types/chrome": "^0.1.6",
+		"@types/node": "^24.3.0",
 		"npm-run-all2": "^7.0.1",
-		"parcel": "^2.13.0",
+		"parcel": "^2.15.4",
 		"stylelint": "^16.6.1",
 		"stylelint-config-prettier": "^9.0.5",
 		"stylelint-config-xo": "^1.0.2",
+		"typescript": "^5.9.2",
 		"xo": "^0.59.3"
 	},
 	"@parcel/resolver-default": {
