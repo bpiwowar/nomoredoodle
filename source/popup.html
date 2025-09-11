@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset="UTF-8" />
+	<title>Calendars</title>
+	<style>
+		body {
+			font-family: sans-serif;
+			min-width: 300px;
+			padding: 10px;
+		}
+
+		.group {
+			margin-bottom: 10px;
+		}
+
+		.group-title {
+			font-weight: bold;
+			margin-bottom: 4px;
+		}
+
+		.calendar {
+			display: flex;
+			align-items: center;
+		}
+
+		.calendar label {
+			margin-left: 6px;
+		}
+	</style>
+</head>
+
+<body>
+	<button id="fill" disabled>Fill availability</button>
+	<div id="calendars">Loading calendars...</div>
+	<script type="module" src="popup.ts"></script>
+</body>
+
+</html>

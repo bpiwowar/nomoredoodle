@@ -4,9 +4,14 @@
     "module": "ESNext",
     "strict": true,
     "esModuleInterop": true,
+		"jsx": "react-jsx",
     "moduleResolution": "node",
     "sourceMap": true,
-    "noEmit": true
+    "noEmit": true,
+		"types": [
+			"firefox-webext-browser",
+			"chrome"
+		]
   },
   "include": ["source/**/*.ts"]
 }

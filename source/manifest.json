@@ -1,14 +1,14 @@
 {
 	"$schema": "https://json.schemastore.org/chrome-manifest",
-	"name": "Awesome Extension",
-	"version": "0.0.0",
-	"description": "An awesome new browser extension",
+	"name": "No More Doodle extension",
+	"version": "0.1.0",
+	"description": "Fills up your doodle instantly, using native calendar information",
 	"homepage_url": "https://github.com/fregante/browser-extension-template",
 	"manifest_version": 3,
 	"minimum_chrome_version": "121",
 	"browser_specific_settings": {
 		"gecko": {
-			"id": "awesome-extension@notlmn.github.io",
+			"id": "no-more-doodle@piwowarski.fr",
 			"strict_min_version": "109.0"
 		}
 	},
@@ -16,16 +16,24 @@
 		"128": "icon.png"
 	},
 	"permissions": [
-		"storage"
+		"nativeMessaging",
+		"storage",
+		"tabs",
+		"activeTab"
 	],
 	"host_permissions": [
-		"https://github.com/*"
+		"*://doodle.com/*"
 	],
 	"content_scripts": [
 		{
-			"matches": [ "https://github.com/fregante/browser-extension-template/*" ],
-			"js": [ "content.ts" ],
-			"css": [ "content.css" ],
+			"matches": [
+				"https://doodle.com/*"
+			],
+			"js": [
+				"sites/doodle.ts"
+			],
+			"css": [
+			],
 			"run_at": "document_end"
 		}
 	],
@@ -35,6 +43,12 @@
 	"background": {
 		"service_worker": "background.ts",
 		"type": "module",
-		"scripts": [ "background.ts" ]
+		"scripts": [
+			"background.ts"
+		]
+	},
+	"action": {
+		"default_popup": "popup.html",
+		"default_title": "Select Calendars"
 	}
 }
