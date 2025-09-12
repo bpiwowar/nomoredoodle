@@ -3,7 +3,7 @@
 	"name": "No More Doodle extension",
 	"version": "0.1.0",
 	"description": "Fills up your doodle instantly, using native calendar information",
-	"homepage_url": "https://github.com/fregante/browser-extension-template",
+	"homepage_url": "https://github.com/bpiwowar/nomoredoodle",
 	"manifest_version": 3,
 	"minimum_chrome_version": "121",
 	"browser_specific_settings": {

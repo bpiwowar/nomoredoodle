@@ -2,7 +2,7 @@
 import './options-storage.js';
 import { getEvents } from "./nativeCalendar";
 
-export async function getSelectedCalendarIDs() : Promise<string[]> {
+async function getSelectedCalendarIDs() : Promise<string[]> {
 	const { selectedCalendars = {} } = await browser.storage.local.get("selectedCalendars");
 	return Object.entries(selectedCalendars).filter(([_, sel]) => sel).map(([calId, _]) => calId)
 }

@@ -1,39 +1,18 @@
-# browser-extension-template
+# No More Doodle Firefox extension
 
-[link-rgh]: https://github.com/sindresorhus/refined-github
-[link-ngh]: https://github.com/sindresorhus/notifier-for-github
-[link-hfog]: https://github.com/sindresorhus/hide-files-on-github
-[link-tsconfig]: https://github.com/sindresorhus/tsconfig
-[link-options-sync]: https://github.com/fregante/webext-options-sync
-[link-cws-keys]: https://github.com/fregante/chrome-webstore-upload-keys
-[link-amo-keys]: https://addons.mozilla.org/en-US/developers/addon/api/key
+Based on the [browser extension template](https://github.com/fregante/browser-extension-template).
 
-> Cross-browser extension boilerplate - barebones template with Parcel 2, options handler and auto-publishing.
-
-Screenshot of extension options:
-
-![Sample extension options output](media/previewer.png)
-
-## Features
-
-- Uses Manifest v3
-- Use npm dependencies thanks to Parcel 2.
-- [Auto-syncing options](#auto-syncing-options).
-- [Auto-publishing](#publishing) with auto-versioning and support for manual releases.
 
 ## Getting started
 
 ### 1️⃣ Create your own copy
 
-1. Click [<kbd>Use this template</kbd>](https://github.com/fregante/browser-extension-template/generate) to make a copy of your own. 😉
-
-Note: When you create a repository from the template, the [Template Cleanup](.github/workflows/template-cleanup.yml) workflow will be triggered to delete and edit template-specific resources. Wait a moment until the workflow finishes (you will see a commit pushed with 'Template cleanup' message).
 
 ### 🛠 Build locally
 
-1. Checkout the copied repository to your local machine eg. with `git clone https://github.com/my-username/my-awesome-extension/`
-1. Run `npm install` to install all required dependencies
-1. Run `npm run build`
+1. Checkout the copied repository to your local machine eg. with `git clone https://github.com/bpiwowar/nomoredoodle`
+2. Run `npm install` to install all required dependencies
+3. Run `npm run build`
 
 The build step will create the `distribution` folder, this folder will contain the generated extension.
 
