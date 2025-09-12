@@ -1,12 +1,9 @@
 import OptionsSync from 'webext-options-sync';
 
-const optionsStorage = new OptionsSync({
-	defaults: {
-		colorRed: 244,
-		colorGreen: 67,
-		colorBlue: 54,
-		text: 'Set a text!',
-	},
+export type Options = Record<string, boolean>;
+
+const optionsStorage = new OptionsSync<Options>({
+	defaults: {},
 	migrations: [
 		OptionsSync.migrations.removeUnused,
 	],

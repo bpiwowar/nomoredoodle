@@ -1,75 +1,72 @@
-import { getCalendars, CalendarsGrouped } from "./nativeCalendar";
+import {getCalendars, type CalendarsGrouped} from './nativeCalendar.js';
 
 // Ask background if current tab is supported
-const fillBtn = document.getElementById("fill") as HTMLButtonElement;
-	if (fillBtn) {
-		chrome.runtime.sendMessage({ type: "checkSupportedPage" }, (resp) => {
-		console.log("Current page is supported", resp)
-		if (resp ?.supported) {
-			fillBtn.disabled = false;
-		} else {
-			fillBtn.disabled = true;
-		}
+const fillButton = document.querySelector('#fill')! as HTMLInputElement;
+if (fillButton) {
+	chrome.runtime.sendMessage({type: 'checkSupportedPage'}, resp => {
+		console.log('Current page is supported', resp);
+		fillButton.disabled = !resp?.supported;
 	});
 	// Handle click
-	fillBtn.addEventListener("click", () => {
-		chrome.runtime.sendMessage({ type: "fillSlots" });
+	fillButton.addEventListener('click', () => {
+		chrome.runtime.sendMessage({type: 'fillSlots'});
 	});
 }
 
 async function loadCalendars() {
-	const container = document.getElementById("calendars")!;
-	container.textContent = "Loading calendars...";
+	const container = document.querySelector('#calendars')!;
+	container.textContent = 'Loading calendars...';
 
 	try {
 		const calendars: CalendarsGrouped = await getCalendars();
-		container.textContent = "";
+		container.textContent = '';
 
 		// Load previously selected calendars
-		const { selectedCalendars = {} } = await browser.storage.local.get("selectedCalendars");
+		const {selectedCalendars = {}} = await browser.storage.local.get('selectedCalendars');
 
 		for (const provider in calendars) {
-			const groupDiv = document.createElement("div");
-			groupDiv.className = "group";
+			const groupDiv = document.createElement('div');
+			groupDiv.className = 'group';
 
-			const title = document.createElement("div");
-			title.className = "group-title";
+			const title = document.createElement('div');
+			title.className = 'group-title';
 			title.textContent = provider;
-			groupDiv.appendChild(title);
+			groupDiv.append(title);
 
-			calendars[provider].forEach((cal) => {
-				const calDiv = document.createElement("div");
-				calDiv.className = "calendar";
+			for (const cal of calendars[provider]) {
+				const calDiv = document.createElement('div');
+				calDiv.className = 'calendar';
 
-				const checkbox = document.createElement("input");
-				checkbox.type = "checkbox";
+				const checkbox = document.createElement('input');
+				checkbox.type = 'checkbox';
 				checkbox.id = cal.id;
-				checkbox.checked = !!selectedCalendars[cal.id];
+				checkbox.checked = Boolean(selectedCalendars[cal.id]);
 
-				checkbox.addEventListener("change", async () => {
+				checkbox.addEventListener('change', async () => {
 					// Update storage on change
-					const { selectedCalendars = {} } = await browser.storage.local.get("selectedCalendars");
+					const {selectedCalendars = {}} = await browser.storage.local.get('selectedCalendars');
 					if (checkbox.checked) {
 						selectedCalendars[cal.id] = true;
 					} else {
 						delete selectedCalendars[cal.id];
 					}
-					await browser.storage.local.set({ selectedCalendars });
+
+					await browser.storage.local.set({selectedCalendars});
 				});
 
-				const label = document.createElement("label");
+				const label = document.createElement('label');
 				label.htmlFor = cal.id;
 				label.textContent = cal.title;
 
-				calDiv.appendChild(checkbox);
-				calDiv.appendChild(label);
-				groupDiv.appendChild(calDiv);
-			});
+				calDiv.append(checkbox);
+				calDiv.append(label);
+				groupDiv.append(calDiv);
+			}
 
-			container.appendChild(groupDiv);
+			container.append(groupDiv);
 		}
-	} catch (err) {
-		container.textContent = `Failed to load calendars: ${err}`;
+	} catch (error) {
+		container.textContent = `Failed to load calendars: ${error}`;
 	}
 }
 
