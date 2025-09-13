@@ -94,8 +94,8 @@ function TimeSlotManager({slots: _slots, events, fillForm}: {slots: CalendarSlot
 										<div className='flex space-x-2'>
 											<select
 												value={slot.status}
-												onChange={e => {
-													handleSlotStatusChange(slot.id, e.target.value as CalendarSlot['status']);
+												onChange={event => {
+													handleSlotStatusChange(slot.id, event.target.value as CalendarSlot['status']);
 												}}
 												className='bg-white border rounded p-1 text-sm'
 											>
@@ -139,7 +139,7 @@ function TimeSlotManager({slots: _slots, events, fillForm}: {slots: CalendarSlot
 				<div className='content-center'>
 					<button type='button' onClick={() => {
 						console.log('Clicked on \'fill form\'');
-						fillForm(computedSlots).then(() => {}).catch(error => {
+						fillForm(computedSlots).catch((error: unknown) => {
 							console.error('Error when filling the form', error);
 						});
 					}} className='text-white bg-blue-500 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>Fill the form</button>
@@ -170,14 +170,14 @@ function TimeSlotManager({slots: _slots, events, fillForm}: {slots: CalendarSlot
 	</div>);
 }
 
-const WRAPPER_DIV_ID = 'no-more-doodle-dialog';
-let root: Root | null = null;
+const wrapperDivId = 'no-more-doodle-dialog';
+let root: Root | undefined;
 
 export function createApp(slots: CalendarSlot[], events: CalendarEvent[], fillForm: (slots: CalendarSlot[]) => Promise<void>) {
 	console.log('Creating app with', slots, events);
 
 	// Create a host element in the DOM
-	let wrapper = document.getElementById(WRAPPER_DIV_ID);
+	let wrapper = document.querySelector(`#${wrapperDivId}`);
 	if (!wrapper) {
 		const shadowHost = document.createElement('div');
 		document.body.append(shadowHost);
@@ -186,7 +186,7 @@ export function createApp(slots: CalendarSlot[], events: CalendarEvent[], fillFo
 
 		// Create a wrapper div inside the shadow root
 		wrapper = document.createElement('div');
-		wrapper.id = WRAPPER_DIV_ID;
+		wrapper.id = wrapperDivId;
 		shadowRoot.append(wrapper);
 
 		// Optional: inject styles inside shadow

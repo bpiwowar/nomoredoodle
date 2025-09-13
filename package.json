@@ -21,8 +21,8 @@
 			"browser",
 			"webextensions"
 		],
-		"ignores": [
-			"source/tailwind.css.ts"
+		"ignore": [
+			"source/tailwind-css.ts"
 		],
 		"rules": {
 			"unicorn/prefer-top-level-await": "off"

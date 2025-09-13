@@ -1,14 +1,14 @@
 // Types for calendars
 
-import {CalendarStatus, type CalendarEvent, type CalendarSlot} from './events.js';
+import {type CalendarStatus, type CalendarEvent, type CalendarSlot} from './events.js';
 
-const BRIDGE_ID = 'fr.piwowarski.calendar.bridge';
+const bridgeId = 'fr.piwowarski.calendar.bridge';
 
-interface Calendar {
+type Calendar = {
 	id: string;
 	name: string;
 	status: CalendarStatus;
-}
+};
 
 export type CalendarEntry = {
 	id: string;
@@ -34,7 +34,7 @@ const extension: typeof browser | typeof chrome
 	= typeof browser === 'undefined' ? chrome : browser;
 
 // Helper to connect to native host
-export async function getCalendars(hostName: string = BRIDGE_ID): Promise<CalendarsGrouped> {
+export async function getCalendars(hostName: string = bridgeId): Promise<CalendarsGrouped> {
 	return new Promise((resolve, reject) => {
 		let resolved = false;
 
@@ -59,7 +59,7 @@ export async function getCalendars(hostName: string = BRIDGE_ID): Promise<Calend
 			} else if (message.error) {
 				resolved = true;
 				clearTimeout(timeout);
-				reject(new Error(message.error));
+				reject(new Error((message as Error)?.message ?? 'Unknown error'));
 				setTimeout(() => {
 					port.disconnect();
 				}, 0);
@@ -70,8 +70,7 @@ export async function getCalendars(hostName: string = BRIDGE_ID): Promise<Calend
 			// Only reject if we haven't resolved AND timeout hasn't fired
 			if (!resolved) {
 				const errorMessage
-						= (extension.runtime as any).lastError?.message
-						|| 'Native bridge disconnected before sending a response (but may still succeed)';
+						= extension.runtime.lastError?.message ?? 'Native bridge disconnected before sending a response (but may still succeed)';
 				console.warn(errorMessage); // Just log
 			}
 		});
@@ -86,12 +85,12 @@ export async function getCalendars(hostName: string = BRIDGE_ID): Promise<Calend
  *
  * @param start Events should start after this date
  * @param end Events should end before
- * @param calendarIDs A list of calendar IDs
+ * @param calendarIds A list of calendar IDs
  * @returns A list of events
  */
-export async function getEvents(start: Date, end: Date, calendarIDs: string[]): Promise<CalendarEvent[]> {
+export async function getEvents(start: Date, end: Date, calendarIds: string[]): Promise<CalendarEvent[]> {
 	return new Promise((resolve, reject) => {
-		const port = chrome.runtime.connectNative(BRIDGE_ID);
+		const port = chrome.runtime.connectNative(bridgeId);
 		let resolved = false;
 
 		const timeout = setTimeout(() => {
@@ -111,7 +110,7 @@ export async function getEvents(start: Date, end: Date, calendarIDs: string[]): 
 					status: 'no',
 					title: event.title,
 					id: event.id,
-					calendar_id: event.calendarID
+					calendarId: event.calendarID,
 				}));
 				console.log('Returning', events);
 				resolve(events);
@@ -121,7 +120,7 @@ export async function getEvents(start: Date, end: Date, calendarIDs: string[]): 
 			} else if (message.error) {
 				resolved = true;
 				clearTimeout(timeout);
-				reject(new Error(message.error));
+				reject(new Error(message.error as string));
 				setTimeout(() => {
 					port.disconnect();
 				}, 0);
@@ -138,7 +137,7 @@ export async function getEvents(start: Date, end: Date, calendarIDs: string[]): 
 			action: 'getEvents',
 			start: start.getTime() / 1000, // Seconds since epoch
 			end: end.getTime() / 1000,
-			calendarIDs,
+			calendarIds,
 		});
 	});
 }

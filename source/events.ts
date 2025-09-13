@@ -1,19 +1,21 @@
-export type CalendarStatus = 'yes' | 'could-be' | 'if-need-be' | 'no'
+export type CalendarStatus = 'yes' | 'could-be' | 'if-need-be' | 'no';
 
 export type TimeRange = {
-	id: string;
 	startDate: Date;
 	endDate: Date;
-	status: CalendarStatus;
 };
 
 export type CalendarSlot = {
+	id: string;
+	status: CalendarStatus;
 	overridden?: boolean;
 } & TimeRange;
 
 export type CalendarEvent = {
+	id: string;
+	status: CalendarStatus;
 	title: string;
-	calendar_id: string;
+	calendarId: string;
 } & TimeRange;
 
 export const statusOrder = {

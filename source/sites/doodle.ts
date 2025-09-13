@@ -1,6 +1,5 @@
 import {createApp} from '../calendar-app.js';
-import {type CalendarSlot, TimeRange} from '../events.js';
-
+import {type CalendarEvent, type CalendarSlot} from '../events.js';
 
 const status2Attribute: {[key in CalendarSlot['status']]: CalendarSlot['status']} = {
 	no: 'no',
@@ -9,15 +8,17 @@ const status2Attribute: {[key in CalendarSlot['status']]: CalendarSlot['status']
 	yes: 'yes',
 };
 
+type FormFillerInformation = {
+	id: string;
+	wanted: CalendarSlot['status'];
+	seen: Set<CalendarSlot['status']>;
+};
+
 /**
  * This class basically monitors changes until we get it right
  */
 abstract class FormFiller {
-	registeredSlots: Record<string, {
-		id: string;
-		wanted: CalendarSlot['status'];
-		seen: Set<CalendarSlot['status']>;
-	}> = {};
+	registeredSlots: Map<string, FormFillerInformation> = new Map<string, FormFillerInformation>();
 
 	// Can be overwritten when less status in target form than
 	// possible
@@ -31,15 +32,15 @@ abstract class FormFiller {
 
 	changedStatus(slot_id: string, status: CalendarSlot['status']) {
 		console.log(this.registeredSlots);
-		const item = this.registeredSlots[slot_id];
+		const item = this.registeredSlots.get(slot_id);
 		if (!item) {
 			console.error(`${slot_id} is not registered anymore`);
 			return;
 		}
 
-		if (status == item.wanted) {
+		if (status === item.wanted) {
 			console.log(`Status for ${slot_id} matches ${item.wanted}`);
-			delete this.registeredSlots[slot_id];
+			this.registeredSlots.delete(slot_id);
 			console.log('Delete registered', this.registeredSlots);
 			return;
 		}
@@ -58,14 +59,14 @@ abstract class FormFiller {
 			const status = this.getStatus(slot.id);
 			if (!status) {
 				console.error(`Cannot determine ${slot.id} status`);
-			} else if (status == slot.status) {
+			} else if (status === slot.status) {
 				console.log(`${slot.id} status has already status ${status}`);
 			} else {
-				this.registeredSlots[slot.id] = {
+				this.registeredSlots.set(slot.id, {
 					id: slot.id,
 					wanted: this.getWanted(slot),
 					seen: new Set([status]),
-				};
+				});
 				console.log(`Register ${slot.id} => ${slot.status}`);
 				this.changeStatus(slot.id, slot.status);
 				console.log(this.registeredSlots);
@@ -85,9 +86,9 @@ abstract class FormFiller {
 			const interval = setInterval(handler, 500, this, () => {
 				clearInterval(interval);
 				resolve();
-			}, () => {
+			}, (error: Error) => {
 				clearInterval(interval);
-				reject();
+				reject(error);
 			});
 		});
 	}
@@ -99,11 +100,7 @@ abstract class FormFiller {
 
 abstract class DoodleFormFiller extends FormFiller {
 	container: HTMLElement;
-	observer: null | MutationObserver;
-
-	getWanted(slot: CalendarSlot) {
-		return status2Attribute[slot.status];
-	}
+	observer: undefined | MutationObserver;
 
 	constructor(container: HTMLElement) {
 		super();
@@ -113,24 +110,24 @@ abstract class DoodleFormFiller extends FormFiller {
 		this.observer = new MutationObserver(mutations => {
 			for (const mutation of mutations) {
 				console.log('Mutation detected:', mutation);
-				if (mutation.target.nodeType == Node.ELEMENT_NODE) {
+				if (mutation.target.nodeType === Node.ELEMENT_NODE) {
 					const target = mutation.target as HTMLElement;
-					let vote_id = target.dataset.voteId;
-					if (vote_id) {
-						const new_status = this.getStatus(vote_id);
-						console.log(`${vote_id} has changed status: ${new_status}`);
-						if (new_status) {
-							this.changedStatus(vote_id, new_status);
+					let voteId = target.dataset.voteId;
+					if (voteId) {
+						const newStatus = this.getStatus(voteId);
+						console.log(`${voteId} has changed status: ${newStatus}`);
+						if (newStatus) {
+							this.changedStatus(voteId, newStatus);
 						}
 					}
 
-					const test_id = target.dataset.testid
-					vote_id = test_id?.split('-')?.pop();
-					if (vote_id) {
-						const new_status = this.getStatus(vote_id);
-						console.log(`${vote_id} has changed status: ${new_status}`);
-						if (new_status) {
-							this.changedStatus(vote_id, new_status);
+					const testId = target.dataset.testid;
+					voteId = testId?.split('-')?.pop();
+					if (voteId) {
+						const newStatus = this.getStatus(voteId);
+						console.log(`${voteId} has changed status: ${newStatus}`);
+						if (newStatus) {
+							this.changedStatus(voteId, newStatus);
 						}
 					}
 				}
@@ -145,18 +142,22 @@ abstract class DoodleFormFiller extends FormFiller {
 		});
 	}
 
+	getWanted(slot: CalendarSlot) {
+		return status2Attribute[slot.status];
+	}
+
 	close() {
 		console.info('Disconnecting observer');
 		if (this.observer) {
 			this.observer.disconnect();
-			this.observer = null;
+			this.observer = undefined;
 		}
 	}
 }
 
 class TableDoodleFormFiller extends DoodleFormFiller {
 	getStatus(slot_id: string): undefined | CalendarSlot['status'] {
-		const option: HTMLElement | null = this.container.querySelector(`[data-vote-id='${slot_id}']`);
+		const option = this.container.querySelector<HTMLElement>(`[data-vote-id='${slot_id}']`);
 		if (!option) {
 			return undefined;
 		}
@@ -176,20 +177,22 @@ class TableDoodleFormFiller extends DoodleFormFiller {
 
 				case 'Vote--accepted': { return 'yes';
 				}
+
+				default:
+					// Just do nothing
 			}
 		}
-
 	}
+
 	changeStatus(slot_id: string, target: CalendarSlot['status']): void {
-		const option: HTMLElement | null = this.container.querySelector(`[data-vote-id='${slot_id}']`);
+		const option = this.container.querySelector<HTMLElement>(`[data-vote-id='${slot_id}']`);
 		console.log(`Clicking on ${slot_id}`, option);
 		option?.click();
 	}
 
-
 	extractSlots(): CalendarSlot[] {
 		const ranges: CalendarSlot[] = [];
-		const year: number = new Date().getFullYear()
+		const year: number = new Date().getFullYear();
 		for (const element of this.container.querySelectorAll('thead tr th')) {
 			const monthString = element.querySelector('.OptionHeader__date-month')?.textContent?.trim() ?? '';
 			const dayString = element.querySelector('.OptionHeader__date-day')?.textContent?.trim() ?? '';
@@ -213,114 +216,131 @@ class TableDoodleFormFiller extends DoodleFormFiller {
 				ranges.push(slot);
 			}
 		}
-		return ranges
+
+		return ranges;
 	}
 }
 
 class ListDoodleFormFiller extends DoodleFormFiller {
 	getStatus(slot_id: string): undefined | CalendarSlot['status'] {
-		const checkbox: HTMLLIElement | null = this.container.querySelector(`#time-slot-checkbox-${slot_id}`);
+		const checkbox = this.container.querySelector<HTMLLIElement>(`#time-slot-checkbox-${slot_id}`);
 		const item = checkbox?.closest('[data-testid="time-slot-item"]');
 		if (item) {
-			for(const className of item.classList.values()) {
-				if (className.startsWith("time-slot-item_yes")) {
-					return "yes"
+			for (const className of item.classList.values()) {
+				if (className.startsWith('time-slot-item_yes')) {
+					return 'yes';
 				}
-				if (className.startsWith("time-slot-item_if_need_be")) {
-					return "if-need-be"
+
+				if (className.startsWith('time-slot-item_if_need_be')) {
+					return 'if-need-be';
 				}
 			}
-			return "no"
-		} else {
-			console.error(`Could not find #time-slot-checkbox-${slot_id}`)
+
+			return 'no';
 		}
+
+		console.error(`Could not find #time-slot-checkbox-${slot_id}`);
 	}
 
 	changeStatus(slot_id: string, target: CalendarSlot['status']): void {
-		const item: HTMLInputElement | null = this.container.querySelector(`#time-slot-checkbox-${slot_id}`);
+		const item = this.container.querySelector<HTMLInputElement>(`#time-slot-checkbox-${slot_id}`);
 		console.log(`Clicking on ${slot_id}`, item);
-		item?.click()
+		item?.click();
 	}
-
 
 	extractSlots(): CalendarSlot[] {
 		const slots: CalendarSlot[] = [];
 
-		const sections = this.container.querySelectorAll("section[aria-labelledby^='date-heading']");
-		sections.forEach(section => {
-			const dateHeading = section.querySelector("h4")?.textContent?.trim();
-			if (!dateHeading) return;
-
-			const baseDate = new Date(dateHeading); // e.g. "Monday, September 15, 2025"
-
-			const items = section.querySelectorAll("li[data-testid='time-slot-item']");
-			items.forEach(li => {
-			const input = li.querySelector<HTMLInputElement>("input[type=checkbox]");
-			if (!input?.value) return;
-			const id = input.value;
-
-			const timeStr = li.querySelector<HTMLElement>("[data-testid='time-slot-time']")?.innerText.trim();
-			const durationStr = li.querySelector<HTMLElement>("[class^='time-slot-details_time-slot-duration']")?.innerText.trim();
-
-			if (!timeStr || !durationStr) return;
-
-			// Parse start date+time
-			const startDate = new Date(`${baseDate.toDateString()} ${timeStr}`);
-
-			// Parse duration
-			let endDate = new Date(startDate);
-			const match = durationStr.match(/(\d+)\s*(h|min)/);
-			if (match) {
-				const amount = parseInt(match[1], 10);
-				if (match[2] === "h") {
-				endDate.setHours(endDate.getHours() + amount);
-				} else {
-				endDate.setMinutes(endDate.getMinutes() + amount);
-				}
+		const sections = this.container.querySelectorAll('section[aria-labelledby^=\'date-heading\']');
+		for (const section of sections) {
+			const dateHeading = section.querySelector('h4')?.textContent?.trim();
+			if (!dateHeading) {
+				continue;
 			}
 
-			slots.push({
-				id,
-				startDate,
-				endDate,
-				status: "no", // default
-			});
-			});
-		});
+			const baseDate = new Date(dateHeading); // E.g. "Monday, September 15, 2025"
+
+			const items = section.querySelectorAll('li[data-testid=\'time-slot-item\']');
+			for (const li of items) {
+				const input = li.querySelector<HTMLInputElement>('input[type=checkbox]');
+				if (!input?.value) {
+					continue;
+				}
+
+				const id = input.value;
+
+				const timeString = li.querySelector<HTMLElement>('[data-testid=\'time-slot-time\']')?.textContent?.trim();
+				const durationString = li.querySelector<HTMLElement>('[class^=\'time-slot-details_time-slot-duration\']')?.textContent?.trim();
+
+				if (!timeString || !durationString) {
+					continue;
+				}
+
+				// Parse start date+time
+				const startDate = new Date(`${baseDate.toDateString()} ${timeString}`);
+
+				// Parse duration
+				const endDate = new Date(startDate);
+				const match = /(\d+)\s*(h|min)/.exec(durationString);
+				if (match) {
+					const amount = Number.parseInt(match[1], 10);
+					if (match[2] === 'h') {
+						endDate.setHours(endDate.getHours() + amount);
+					} else {
+						endDate.setMinutes(endDate.getMinutes() + amount);
+					}
+				}
+
+				slots.push({
+					id,
+					startDate,
+					endDate,
+					status: 'no', // Default
+				});
+			}
+		}
 
 		return slots;
 	}
 }
 
-let slots: undefined|CalendarSlot[]|null
-let filler: undefined|DoodleFormFiller
+let slots: undefined | CalendarSlot[];
+let filler: undefined | DoodleFormFiller;
 
 function getSlots() {
-	if (slots === null) return null;
-	if (slots) return slots;
+	if (slots === null) {
+		return null;
+	}
+
+	if (slots) {
+		return slots;
+	}
 
 	const table = document.querySelector<HTMLElement>('.ParticipationTable');
 	if (table) {
-		filler = new TableDoodleFormFiller(table)
+		filler = new TableDoodleFormFiller(table);
 	}
 
-	const section = document.querySelector<HTMLElement>("div[data-testid='time-slot-list']")
+	const section = document.querySelector<HTMLElement>('div[data-testid=\'time-slot-list\']');
 	if (section) {
-		filler = new ListDoodleFormFiller(section)
+		filler = new ListDoodleFormFiller(section);
 	}
 
-	if (!filler) return
+	if (!filler) {
+		return;
+	}
 
-	slots = filler.extractSlots()
-	return slots
+	slots = filler.extractSlots();
+	return slots;
 }
 
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-	if (message.type == 'get-range') {
+	if (message.type === 'get-range') {
 		console.log('Getting slots...');
 		const slots = getSlots();
-		if (!slots) return null
+		if (!slots) {
+			return null;
+		}
 
 		const range = {startDate: slots[0].startDate, endDate: slots[0].endDate};
 		for (let i = 1; i < slots?.length; ++i) {
@@ -338,15 +358,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	}
 
 	if (message.type === 'runFill') {
-		console.log(slots, filler)
-		if (filler != null && slots != null) {
+		console.log(slots, filler);
+		if (filler !== undefined && slots !== undefined) {
 			console.log('Running doodle fill...');
-			createApp(slots, message.payload, async slots => {
+			createApp(slots, message.payload as CalendarEvent[], async slots => {
 				// Filling slots
 				console.log('Filling slots', slots);
 				return filler?.fill(slots).finally(() => {
 					filler?.close();
-					});
+				});
 			});
 		}
 	}

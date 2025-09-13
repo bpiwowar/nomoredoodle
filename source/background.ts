@@ -1,24 +1,29 @@
 // eslint-disable-next-line import/no-unassigned-import
 import './options-storage.js';
 import {getEvents} from './native-calendar.js';
+import {CalendarStatus, type CalendarSlot, type TimeRange} from './events.js';
+import {type OptionsCalendarStatus, type SelectedCalendars} from './popup.js';
+
+type TabMessage = {type: 'get-range'} | {type: 'runFill'; payload: CalendarSlot[]};
 
 async function fillSlots(tab_id: number) {
 	console.log('Filling on', tab_id);
-	const {startDate, endDate} = await chrome.tabs.sendMessage(tab_id, {
+	const {startDate, endDate} = await chrome.tabs.sendMessage<TabMessage, TimeRange>(tab_id, {
 		type: 'get-range',
 	});
 
 	console.log('Searching for events in range', startDate, endDate);
 
-	const {selectedCalendars = {}} = await browser.storage.local.get('selectedCalendars');
-	const selectedIDs = Object.entries(selectedCalendars).filter(([_, sel]) => (sel != "off")).map(([calId, _]) => calId);
-	const events = await getEvents(startDate, endDate, selectedIDs);
+	const {selectedCalendars = {}} = (await browser.storage.local.get('selectedCalendars')) as {selectedCalendars?: SelectedCalendars};
+	const selectedIds = Object.entries(selectedCalendars).filter(([_, sel]) => (sel !== 'off')).map(([calId, _]) => calId);
+	const events = await getEvents(startDate, endDate, selectedIds);
 
-	chrome.tabs.sendMessage(tab_id, {
+	const offToYes = (status: OptionsCalendarStatus) => status === 'off' ? 'yes' : status;
+	await chrome.tabs.sendMessage<TabMessage>(tab_id, {
 		type: 'runFill',
 		payload: events.map(event => ({
 			...event,
-			status: selectedCalendars[event.calendar_id]
+			status: offToYes(selectedCalendars[event.calendarId]),
 		})),
 	});
 }
@@ -40,7 +45,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		console.log('Got a message: fill slot');
 		chrome.tabs.query({active: true, currentWindow: true}, tabs => {
 			if (tabs[0]?.id) {
-				fillSlots(tabs[0]?.id);
+				fillSlots(tabs[0]?.id).catch((error: unknown) => {
+					console.warn('Error when filling', error);
+				});
 			}
 		});
 	} else {
