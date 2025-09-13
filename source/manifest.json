@@ -37,9 +37,6 @@
 			"run_at": "document_end"
 		}
 	],
-	"options_ui": {
-		"page": "options.html"
-	},
 	"background": {
 		"service_worker": "background.ts",
 		"type": "module",

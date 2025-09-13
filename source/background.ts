@@ -1,11 +1,6 @@
 // eslint-disable-next-line import/no-unassigned-import
 import './options-storage.js';
-import {getEvents} from './nativeCalendar.js';
-
-async function getSelectedCalendarIDs(): Promise<string[]> {
-	const {selectedCalendars = {}} = await browser.storage.local.get('selectedCalendars');
-	return Object.entries(selectedCalendars).filter(([_, sel]) => sel).map(([calId, _]) => calId);
-}
+import {getEvents} from './native-calendar.js';
 
 async function fillSlots(tab_id: number) {
 	console.log('Filling on', tab_id);
@@ -15,12 +10,16 @@ async function fillSlots(tab_id: number) {
 
 	console.log('Searching for events in range', startDate, endDate);
 
-	const selectedIDs = await getSelectedCalendarIDs();
+	const {selectedCalendars = {}} = await browser.storage.local.get('selectedCalendars');
+	const selectedIDs = Object.entries(selectedCalendars).filter(([_, sel]) => (sel != "off")).map(([calId, _]) => calId);
 	const events = await getEvents(startDate, endDate, selectedIDs);
 
 	chrome.tabs.sendMessage(tab_id, {
 		type: 'runFill',
-		payload: events,
+		payload: events.map(event => ({
+			...event,
+			status: selectedCalendars[event.calendar_id]
+		})),
 	});
 }
 

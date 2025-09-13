@@ -1,8 +1,10 @@
+export type CalendarStatus = 'yes' | 'could-be' | 'if-need-be' | 'no'
+
 export type TimeRange = {
 	id: string;
 	startDate: Date;
 	endDate: Date;
-	status: 'yes' | 'could-be' | 'if-need-be' | 'no';
+	status: CalendarStatus;
 };
 
 export type CalendarSlot = {
@@ -11,6 +13,7 @@ export type CalendarSlot = {
 
 export type CalendarEvent = {
 	title: string;
+	calendar_id: string;
 } & TimeRange;
 
 export const statusOrder = {

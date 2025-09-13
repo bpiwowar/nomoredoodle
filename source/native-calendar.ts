@@ -1,8 +1,14 @@
 // Types for calendars
 
-import {type CalendarEvent, type CalendarSlot} from './events.js';
+import {CalendarStatus, type CalendarEvent, type CalendarSlot} from './events.js';
 
 const BRIDGE_ID = 'fr.piwowarski.calendar.bridge';
+
+interface Calendar {
+	id: string;
+	name: string;
+	status: CalendarStatus;
+}
 
 export type CalendarEntry = {
 	id: string;
@@ -83,7 +89,7 @@ export async function getCalendars(hostName: string = BRIDGE_ID): Promise<Calend
  * @param calendarIDs A list of calendar IDs
  * @returns A list of events
  */
-export async function getEvents(start: Date, end: Date, calendarIDs: string[]): Promise<CalendarSlot[]> {
+export async function getEvents(start: Date, end: Date, calendarIDs: string[]): Promise<CalendarEvent[]> {
 	return new Promise((resolve, reject) => {
 		const port = chrome.runtime.connectNative(BRIDGE_ID);
 		let resolved = false;
@@ -105,6 +111,7 @@ export async function getEvents(start: Date, end: Date, calendarIDs: string[]): 
 					status: 'no',
 					title: event.title,
 					id: event.id,
+					calendar_id: event.calendarID
 				}));
 				console.log('Returning', events);
 				resolve(events);

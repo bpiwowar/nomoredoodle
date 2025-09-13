@@ -1,11 +1,13 @@
-export default {
+const options = {
 	theme: {
-	  extend: {
+		extend: {
 			colors: {
-		  blue: {
+				blue: {
 					700: '#1d4ed8', // Same as v3 blue-700
-		  },
+				},
 			},
-	  },
+		},
 	},
 };
+
+export default options;

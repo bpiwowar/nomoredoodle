@@ -21,6 +21,9 @@
 			"browser",
 			"webextensions"
 		],
+		"ignores": [
+			"source/tailwind.css.ts"
+		],
 		"rules": {
 			"unicorn/prefer-top-level-await": "off"
 		}
@@ -35,6 +38,7 @@
 		"@types/luxon": "^3.7.1",
 		"@types/react": "^19.1.12",
 		"@types/react-dom": "^19.1.9",
+		"@types/xo": "^0.39.9",
 		"eslint-config-xo-react": "^0.28.0",
 		"eslint-plugin-react": "^7.37.5",
 		"eslint-plugin-react-hooks": "^5.2.0",
