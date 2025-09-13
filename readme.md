@@ -2,11 +2,23 @@
 
 Based on the [browser extension template](https://github.com/fregante/browser-extension-template).
 
+## Usage
 
-## Getting started
+### macOS
 
-### 1️⃣ Create your own copy
+A native macOS bridge (so that your calendar can be read) must be built (there is no binary for that). Go into the `bridge` directory, and type
 
+```sh
+swiftc -framework EventKit calendar-bridge.swift -o calendar-bridge
+```
+
+Move the binary where ever you want, and then run `./calendar-bridge --register` once. You should see something like
+
+```txt
+Native host registered at /Users/.../Library/Application Support/Mozilla/NativeMessagingHosts/fr.piwowarski.calendar.bridge.json
+```
+
+## Development
 
 ### 🛠 Build locally
 
