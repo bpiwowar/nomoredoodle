@@ -71,12 +71,7 @@ Thanks to the included [GitHub Action Workflows](.github/workflows), if you set 
 - on a schedule, by default [every week](.github/workflows/release.yml) (but only if there are any new commits in the last tag)
 - manually, by clicking ["Run workflow"](https://github.blog/changelog/2020-07-06-github-actions-manual-triggers-with-workflow_dispatch/) in the Actions tab.
 
-## Credits
-
-Extension icon made by [Freepik](https://www.freepik.com) from [www.flaticon.com](https://www.flaticon.com) is licensed by [CC 3.0 BY](http://creativecommons.org/licenses/by/3.0).
 
 ## License
 
-This browser extension template is released under [CC0](#license) and mentioned below. There is no `license` file included in here, but when you clone this template, you should include your own license file for the specific license you choose to use.
-
-[![CC0](https://mirrors.creativecommons.org/presskit/buttons/88x31/svg/cc-zero.svg)](https://creativecommons.org/publicdomain/zero/1.0/)
+This plugin is licensed under the MIT License.
