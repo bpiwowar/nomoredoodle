@@ -12,7 +12,6 @@ async function fillSlots(tab_id: number) {
 		type: 'get-range',
 	});
 
-
 	const {selectedCalendars = {}} = (await browser.storage.local.get('selectedCalendars')) as {selectedCalendars?: SelectedCalendars};
 	const selectedIds = Object.entries(selectedCalendars).filter(([_, sel]) => (sel !== 'off')).map(([calId, _]) => calId);
 
@@ -20,7 +19,7 @@ async function fillSlots(tab_id: number) {
 	const events = await getEvents(startDate, endDate, selectedIds);
 
 	const offToYes = (status: OptionsCalendarStatus) => status === 'off' ? 'yes' : status;
-	return await chrome.tabs.sendMessage<TabMessage>(tab_id, {
+	return chrome.tabs.sendMessage<TabMessage>(tab_id, {
 		type: 'runFill',
 		payload: events.map(event => ({
 			...event,
@@ -47,22 +46,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		chrome.tabs.query({active: true, currentWindow: true}, tabs => {
 			if (tabs[0]?.id) {
 				fillSlots(tabs[0]?.id)
-					.then(() => {
+					.then(async () => {
 						console.log('Filling is OK');
-						browser.notifications.create({
-							type: "basic",
-							// iconUrl: browser.runtime.getURL("icons/error.png"),
-							title: "Meeting schedule filled",
-							message: "All good"
+						await browser.notifications.create({
+							type: 'basic',
+							// IconUrl: browser.runtime.getURL("icons/error.png"),
+							title: 'Meeting schedule filled',
+							message: 'All good',
 						});
 					})
-					.catch((error: Error) => {
+					.catch(async (error: unknown) => {
 						console.warn('Error when filling', error);
-						browser.notifications.create({
-							type: "basic",
-							// iconUrl: browser.runtime.getURL("icons/error.png"),
-							title: "Error",
-							message: `Got errors when filling: ${error.message}`
+						await browser.notifications.create({
+							type: 'basic',
+							// IconUrl: browser.runtime.getURL("icons/error.png"),
+							title: 'Error',
+							message: `Got errors when filling: ${(error as Error)?.message}`,
 						});
 					});
 			}

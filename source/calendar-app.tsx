@@ -1,4 +1,4 @@
-import React, {CSSProperties, useMemo} from 'react';
+import React, {type CSSProperties, useMemo} from 'react';
 import {createRoot, type Root} from 'react-dom/client';
 import {tailwindCSS} from './tailwind-css.js';
 import {
@@ -67,7 +67,9 @@ function TimeSlotManager({slots: _slots, events, fillForm}: {slots: CalendarSlot
 	};
 
 	if (!visible) {
-		return <button style={{...style, height: "50px", width: "200px"}} onClick={() => setVisible(true)}>Show Time Slot Manager</button>
+		return <button style={{...style, height: '50px', width: '200px'}} onClick={() => {
+			setVisible(true);
+		}}>Show Time Slot Manager</button>;
 	}
 
 	return (<div style={style}>

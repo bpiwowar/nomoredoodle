@@ -1,28 +1,29 @@
 import {type CalendarEvent, type CalendarSlot} from '../events.js';
 
 type SlotChangedEvent = {
-	slot_id: string;
-	status: CalendarSlot['status']
+	slotId: string;
+	status: CalendarSlot['status'];
 };
 
 class EventQueue<T> {
-	private queue: T[] = [];
-	private resolvers: ((value: T) => void)[] = [];
+	private readonly queue: T[] = [];
+	private readonly resolvers: Array<(value: T) => void> = [];
 
-	push(ev: T) {
+	push(event_: T) {
 		if (this.resolvers.length > 0) {
-			// someone is awaiting
+			// Someone is awaiting
 			const resolve = this.resolvers.shift()!;
-			resolve(ev);
+			resolve(event_);
 		} else {
-			this.queue.push(ev);
+			this.queue.push(event_);
 		}
 	}
 
-	next(): Promise<T> {
+	async next(): Promise<T> {
 		if (this.queue.length > 0) {
-			return Promise.resolve(this.queue.shift()!);
+			return this.queue.shift()!;
 		}
+
 		return new Promise<T>(resolve => {
 			this.resolvers.push(resolve);
 		});
@@ -36,18 +37,17 @@ class RequestQueue {
 	public errors: string[] = [];
 
 	// Add a request to the queue
-	enqueue(request: RequestChange): Promise<void> {
+	async enqueue(request: RequestChange): Promise<void> {
 		// Chain the new request after the last one
 		this.lastPromise = this.lastPromise
-			.then(() => request())
-			.catch((error: Error) => {
-				this.errors.push(error.message);
+			.then(async () => request())
+			.catch((error: unknown) => {
+				this.errors.push((error as Error)?.message);
 			});
 
 		return this.lastPromise;
 	}
 }
-
 
 /**
  * This class basically monitors changes until we get it right
@@ -77,61 +77,63 @@ export abstract class FormFiller {
 		// Do nothing in this abstract class
 	}
 
-	changedStatus(slot_id: string, status: CalendarSlot['status']) {
-		this.eventQueue.push({ slot_id, status })
+	changedStatus(slotId: string, status: CalendarSlot['status']) {
+		this.eventQueue.push({slotId, status});
 	}
 
-	async changeStatusAsync(slot_id: string, wanted: CalendarSlot['status']): Promise<void> {
-		let status = this.getStatus(slot_id);
+	async changeStatusAsync(slotId: string, wanted: CalendarSlot['status']): Promise<void> {
+		let status = this.getStatus(slotId);
 		let changes = 0;
 
-		if (status == wanted) {
-			console.log(`Slot ${slot_id} has wanted status ${wanted}`)
-			return; // all good
+		if (status === wanted) {
+			console.log(`Slot ${slotId} has wanted status ${wanted}`);
+			return; // All good
 		}
 
-		console.log(`==== Changing ${slot_id} => ${wanted}`)
-		this.changeStatus(slot_id, wanted);
-		while (status != wanted) {
+		console.log(`==== Changing ${slotId} => ${wanted}`);
+		this.changeStatus(slotId, wanted);
+		while (status !== wanted) {
+			/* eslint-disable-next-line no-await-in-loop */
 			const event = await this.eventQueue.next();
-			console.log("[EVENT]", event)
+			console.log('[EVENT]', event);
 
-			if (event.slot_id != slot_id) {
-				console.warn(`Slot ID mismatch ${event.slot_id} vs expected ${slot_id}`)
+			if (event.slotId !== slotId) {
+				console.warn(`Slot ID mismatch ${event.slotId} vs expected ${slotId}`);
 			} else if (event.status === wanted) {
-				// all good
-				break
-			} else if (status != event.status) {
+				// All good
+				break;
+			} else if (status !== event.status) {
 				// Only change if the status has changed
 				status = event.status;
-				this.changeStatus(slot_id, wanted);
+				this.changeStatus(slotId, wanted);
 				if (++changes > this.maxChanges) {
 					console.error(`Got too many changes ${changes} without reaching target: failure`);
-					throw Error(`Got too many changes ${changes} without reaching target: failure`);
+					throw new Error(`Got too many changes ${changes} without reaching target: failure`);
 				}
 			}
 		}
 
-		console.log(`Slot ${slot_id} has wanted status ${wanted}`)
+		console.log(`Slot ${slotId} has wanted status ${wanted}`);
 	}
 
 	async fill(slots: CalendarSlot[]) {
 		const queue = new RequestQueue();
 
 		for (const slot of slots) {
-			queue.enqueue(() => this.changeStatusAsync(slot.id, slot.status));
+			/* eslint-disable-next-line @typescript-eslint/no-floating-promises */
+			queue.enqueue(async () => this.changeStatusAsync(slot.id, slot.status));
 		}
 
 		// Wait that everything has been processed
 		await queue.lastPromise;
 
 		if (queue.errors.length > 0) {
-			console.error("Got errors during the filling process", queue.errors);
+			console.error('Got errors during the filling process', queue.errors);
 			throw new Error(queue.errors.join(', '));
 		}
 	}
 
-	abstract getStatus(slot_id: string): CalendarSlot['status'] | undefined;
-	abstract changeStatus(slot_id: string, target: CalendarSlot['status']): void;
+	abstract getStatus(slotId: string): CalendarSlot['status'] | undefined;
+	abstract changeStatus(slotId: string, target: CalendarSlot['status']): void;
 	abstract extractSlots(): CalendarSlot[];
 }
