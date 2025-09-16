@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo} from 'react';
+import React, {CSSProperties, useMemo} from 'react';
 import {createRoot, type Root} from 'react-dom/client';
 import {tailwindCSS} from './tailwind-css.js';
 import {
@@ -49,11 +49,7 @@ function TimeSlotManager({slots: _slots, events, fillForm}: {slots: CalendarSlot
 
 	const getIntersectingEvents = (slot: CalendarSlot) => events.filter(event => doRangesIntersect(slot, event));
 
-	if (!visible) {
-		return <></>;
-	}
-
-	return (<div style={{
+	const style: CSSProperties = {
 		position: 'fixed',
 		top: '10px', // Small offset from top
 		left: '10px', // Small offset from left
@@ -68,7 +64,13 @@ function TimeSlotManager({slots: _slots, events, fillForm}: {slots: CalendarSlot
 		borderRadius: '8px',
 		boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
 		overflow: 'auto',
-	}}>
+	};
+
+	if (!visible) {
+		return <button style={{...style, height: "50px", width: "200px"}} onClick={() => setVisible(true)}>Show Time Slot Manager</button>
+	}
+
+	return (<div style={style}>
 		<div className='space-y-8'>
 			<h1 className='text-3xl font-bold text-gray-800'>Time Slot Manager</h1>
 

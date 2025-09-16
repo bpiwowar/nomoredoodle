@@ -12,14 +12,15 @@ async function fillSlots(tab_id: number) {
 		type: 'get-range',
 	});
 
-	console.log('Searching for events in range', startDate, endDate);
 
 	const {selectedCalendars = {}} = (await browser.storage.local.get('selectedCalendars')) as {selectedCalendars?: SelectedCalendars};
 	const selectedIds = Object.entries(selectedCalendars).filter(([_, sel]) => (sel !== 'off')).map(([calId, _]) => calId);
+
+	console.log('Searching for events in range', startDate, endDate, selectedIds);
 	const events = await getEvents(startDate, endDate, selectedIds);
 
 	const offToYes = (status: OptionsCalendarStatus) => status === 'off' ? 'yes' : status;
-	await chrome.tabs.sendMessage<TabMessage>(tab_id, {
+	return await chrome.tabs.sendMessage<TabMessage>(tab_id, {
 		type: 'runFill',
 		payload: events.map(event => ({
 			...event,
@@ -45,9 +46,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		console.log('Got a message: fill slot');
 		chrome.tabs.query({active: true, currentWindow: true}, tabs => {
 			if (tabs[0]?.id) {
-				fillSlots(tabs[0]?.id).catch((error: unknown) => {
-					console.warn('Error when filling', error);
-				});
+				fillSlots(tabs[0]?.id)
+					.then(() => {
+						console.log('Filling is OK');
+						browser.notifications.create({
+							type: "basic",
+							// iconUrl: browser.runtime.getURL("icons/error.png"),
+							title: "Meeting schedule filled",
+							message: "All good"
+						});
+					})
+					.catch((error: Error) => {
+						console.warn('Error when filling', error);
+						browser.notifications.create({
+							type: "basic",
+							// iconUrl: browser.runtime.getURL("icons/error.png"),
+							title: "Error",
+							message: `Got errors when filling: ${error.message}`
+						});
+					});
 			}
 		});
 	} else {

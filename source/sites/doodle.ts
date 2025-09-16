@@ -20,7 +20,7 @@ abstract class DoodleFormFiller extends FormFiller {
 
 		this.observer = new MutationObserver(mutations => {
 			for (const mutation of mutations) {
-				console.log('Mutation detected:', mutation);
+				// console.log('Mutation detected:', mutation);
 				if (mutation.target.nodeType === Node.ELEMENT_NODE) {
 					const target = mutation.target as HTMLElement;
 					let voteId = target.dataset.voteId;
@@ -29,6 +29,7 @@ abstract class DoodleFormFiller extends FormFiller {
 						console.log(`${voteId} has changed status: ${newStatus}`);
 						if (newStatus) {
 							this.changedStatus(voteId, newStatus);
+							continue
 						}
 					}
 
@@ -39,6 +40,7 @@ abstract class DoodleFormFiller extends FormFiller {
 						console.log(`${voteId} has changed status: ${newStatus}`);
 						if (newStatus) {
 							this.changedStatus(voteId, newStatus);
+							continue
 						}
 					}
 				}

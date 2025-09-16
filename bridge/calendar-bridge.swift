@@ -92,12 +92,12 @@ func listCalendars() -> [String: [[String: String]]] {
 }
 
 
-func getEvents(start: Date, end: Date, calendarIDs: [String]) -> [[String: Any]] {
+func getEvents(start: Date, end: Date, calendarIds: [String]) -> [[String: Any]] {
     var eventsArray: [[String: Any]] = []
 
     // Filter calendars
     let calendars = eventStore.calendars(for: .event)
-        .filter { calendarIDs.contains($0.calendarIdentifier) }
+        .filter { calendarIds.contains($0.calendarIdentifier) }
 
     // Fetch events in the date range
     let predicate = eventStore.predicateForEvents(withStart: start, end: end, calendars: calendars)
@@ -170,19 +170,26 @@ while true {
             sendMessage(["calendars": grouped])
 
         case "getEvents":
-            guard
-                let startTS = message["start"] as? TimeInterval,
-                let endTS = message["end"] as? TimeInterval,
-                let calendarIDs = message["calendarIDs"] as? [String]
-            else {
-                sendMessage(["error": "Missing start/end/calendarIDs"])
-                break
-            }
+			guard let startTS = message["start"] as? TimeInterval else {
+				sendMessage(["error": "Missing or invalid 'start'"])
+				break
+			}
+
+			guard let endTS = message["end"] as? TimeInterval else {
+				sendMessage(["error": "Missing or invalid 'end'"])
+				break
+			}
+
+			guard let calendarIds = message["calendarIds"] as? [String] else {
+				sendMessage(["error": "Missing or invalid 'calendarIds'"])
+				break
+			}
+
             let events = getEvents(start: Date(timeIntervalSince1970: startTS),
                                 end: Date(timeIntervalSince1970: endTS),
-                                calendarIDs: calendarIDs)
+                                calendarIds: calendarIds)
             sendMessage(["events": events])
-    
+
         default:
             sendMessage(["error": "Unknown action \(action)"])
         }

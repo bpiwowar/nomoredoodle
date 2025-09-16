@@ -1,7 +1,7 @@
 {
 	"$schema": "https://json.schemastore.org/chrome-manifest",
 	"name": "No More Doodle extension",
-	"version": "25.9.13",
+	"version": "25.9.14",
 	"description": "Fills up your doodle instantly, using native calendar information",
 	"homepage_url": "https://github.com/bpiwowar/nomoredoodle",
 	"manifest_version": 3,
@@ -19,7 +19,8 @@
 		"nativeMessaging",
 		"storage",
 		"tabs",
-		"activeTab"
+		"activeTab",
+		"notifications"
 	],
 	"host_permissions": [
 		"*://doodle.com/*"

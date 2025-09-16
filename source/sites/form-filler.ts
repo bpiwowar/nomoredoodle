@@ -1,88 +1,134 @@
 import {type CalendarEvent, type CalendarSlot} from '../events.js';
 
-type FormFillerInformation = {
-	id: string;
-	wanted: CalendarSlot['status'];
-	seen: Set<CalendarSlot['status']>;
+type SlotChangedEvent = {
+	slot_id: string;
+	status: CalendarSlot['status']
 };
+
+class EventQueue<T> {
+	private queue: T[] = [];
+	private resolvers: ((value: T) => void)[] = [];
+
+	push(ev: T) {
+		if (this.resolvers.length > 0) {
+			// someone is awaiting
+			const resolve = this.resolvers.shift()!;
+			resolve(ev);
+		} else {
+			this.queue.push(ev);
+		}
+	}
+
+	next(): Promise<T> {
+		if (this.queue.length > 0) {
+			return Promise.resolve(this.queue.shift()!);
+		}
+		return new Promise<T>(resolve => {
+			this.resolvers.push(resolve);
+		});
+	}
+}
+
+type RequestChange = () => Promise<void>;
+
+class RequestQueue {
+	public lastPromise: Promise<void> = Promise.resolve();
+	public errors: string[] = [];
+
+	// Add a request to the queue
+	enqueue(request: RequestChange): Promise<void> {
+		// Chain the new request after the last one
+		this.lastPromise = this.lastPromise
+			.then(() => request())
+			.catch((error: Error) => {
+				this.errors.push(error.message);
+			});
+
+		return this.lastPromise;
+	}
+}
+
 
 /**
  * This class basically monitors changes until we get it right
  */
 export abstract class FormFiller {
-	registeredSlots: Map<string, FormFillerInformation> = new Map<string, FormFillerInformation>();
+	/// Maximum number of changes before reporting a failure
+	maxChanges = 10;
+
+	/// Queue of change requests
+	queue: RequestQueue;
+
+	/// Manages changed events
+	eventQueue: EventQueue<SlotChangedEvent>;
+
+	constructor() {
+		this.eventQueue = new EventQueue<SlotChangedEvent>();
+		this.queue = new RequestQueue();
+	}
 
 	// Can be overwritten when less status in target form than
-	// possible
+	// possible (status conversion)
 	getWanted(slot: CalendarSlot) {
 		return slot.status;
 	}
 
 	close() {
-		// Do nothing
+		// Do nothing in this abstract class
 	}
 
 	changedStatus(slot_id: string, status: CalendarSlot['status']) {
-		console.log(this.registeredSlots);
-		const item = this.registeredSlots.get(slot_id);
-		if (!item) {
-			console.error(`${slot_id} is not registered anymore`);
-			return;
+		this.eventQueue.push({ slot_id, status })
+	}
+
+	async changeStatusAsync(slot_id: string, wanted: CalendarSlot['status']): Promise<void> {
+		let status = this.getStatus(slot_id);
+		let changes = 0;
+
+		if (status == wanted) {
+			console.log(`Slot ${slot_id} has wanted status ${wanted}`)
+			return; // all good
 		}
 
-		if (status === item.wanted) {
-			console.log(`Status for ${slot_id} matches ${item.wanted}`);
-			this.registeredSlots.delete(slot_id);
-			console.log('Delete registered', this.registeredSlots);
-			return;
+		console.log(`==== Changing ${slot_id} => ${wanted}`)
+		this.changeStatus(slot_id, wanted);
+		while (status != wanted) {
+			const event = await this.eventQueue.next();
+			console.log("[EVENT]", event)
+
+			if (event.slot_id != slot_id) {
+				console.warn(`Slot ID mismatch ${event.slot_id} vs expected ${slot_id}`)
+			} else if (event.status === wanted) {
+				// all good
+				break
+			} else if (status != event.status) {
+				// Only change if the status has changed
+				status = event.status;
+				this.changeStatus(slot_id, wanted);
+				if (++changes > this.maxChanges) {
+					console.error(`Got too many changes ${changes} without reaching target: failure`);
+					throw Error(`Got too many changes ${changes} without reaching target: failure`);
+				}
+			}
 		}
 
-		if (item.seen.has(status)) {
-			console.error(`Status ${status} has already been seen for ${slot_id}: stopping`);
-			return;
-		}
-
-		console.log(`Changing the status of ${slot_id}`);
-		this.changeStatus(slot_id, item.wanted);
+		console.log(`Slot ${slot_id} has wanted status ${wanted}`)
 	}
 
 	async fill(slots: CalendarSlot[]) {
+		const queue = new RequestQueue();
+
 		for (const slot of slots) {
-			const status = this.getStatus(slot.id);
-			if (!status) {
-				console.error(`Cannot determine ${slot.id} status`);
-			} else if (status === slot.status) {
-				console.log(`${slot.id} status has already status ${status}`);
-			} else {
-				this.registeredSlots.set(slot.id, {
-					id: slot.id,
-					wanted: this.getWanted(slot),
-					seen: new Set([status]),
-				});
-				console.log(`Register ${slot.id} => ${slot.status}`);
-				this.changeStatus(slot.id, slot.status);
-				console.log(this.registeredSlots);
-			}
+			queue.enqueue(() => this.changeStatusAsync(slot.id, slot.status));
 		}
 
-		function handler(_this: FormFiller, resolve: () => void, reject: () => void) {
-			console.log('Checking....');
-			if (Object.keys(_this.registeredSlots).length === 0) {
-				console.log('All good, exiting');
+		// Wait that everything has been processed
+		await queue.lastPromise;
 
-				resolve();
-			}
+		if (queue.errors.length > 0) {
+			console.error("Got errors during the filling process", queue.errors);
+			throw new Error(queue.errors.join(', '));
 		}
-
-		return new Promise<void>((resolve, reject) => {
-			const interval = setInterval(handler, 500, this, () => {
-				clearInterval(interval);
-				resolve();
-			}, (error: Error) => {
-				clearInterval(interval);
-				reject(error);
-			});
-		});
 	}
 
 	abstract getStatus(slot_id: string): CalendarSlot['status'] | undefined;
