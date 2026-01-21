@@ -10,18 +10,15 @@
 		"test": "run-p lint:* build",
 		"watch": "run-p watch:*",
 		"watch:parcel": "NODE_NO_WARNINGS=1 parcel watch --no-hmr",
-		"watch:tsc": "tsc --noEmit --watch"
+		"watch:tsc": "tsc --noEmit --watch",
+		"prepare": "husky"
 	},
 	"browserslist": [
 		"last 1 Chrome version",
 		"last 1 Firefox version"
 	],
 	"xo": {
-		"envs": [
-			"browser",
-			"webextensions"
-		],
-		"ignore": [
+		"ignores": [
 			"source/tailwind-css.ts"
 		],
 		"rules": {
@@ -33,6 +30,15 @@
 			"stylelint-config-xo"
 		],
 		"rules": {}
+	},
+	"lint-staged": {
+		"*.{ts,tsx}": [
+			"xo --fix",
+			"tsc --noEmit --skipLibCheck"
+		],
+		"*.css": [
+			"stylelint --fix"
+		]
 	},
 	"dependencies": {
 		"@types/luxon": "^3.7.1",
@@ -58,6 +64,8 @@
 		"@types/firefox-webext-browser": "^120.0.4",
 		"@types/node": "^24.5.0",
 		"autoprefixer": "^10.4.21",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.2.7",
 		"npm-run-all2": "^8.0.4",
 		"parcel": "^2.15.4",
 		"postcss": "^8.5.6",
