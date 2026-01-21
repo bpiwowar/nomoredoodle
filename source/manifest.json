@@ -1,7 +1,7 @@
 {
 	"$schema": "https://json.schemastore.org/chrome-manifest",
 	"name": "No More Doodle extension",
-	"version": "25.9.14",
+	"version": "26.1.21",
 	"description": "Fills up your doodle instantly, using native calendar information",
 	"homepage_url": "https://github.com/bpiwowar/nomoredoodle",
 	"manifest_version": 3,
