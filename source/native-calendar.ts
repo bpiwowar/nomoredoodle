@@ -28,6 +28,7 @@ type EventItem = {
 	calendarTitle: string;
 	location?: string;
 	notes?: string;
+	availability?: string;
 };
 
 // Helper to connect to native host
@@ -101,14 +102,27 @@ export async function getEvents(start: Date, end: Date, calendarIds: string[]): 
 				resolved = true;
 				clearTimeout(timeout);
 				const items = message.events as EventItem[];
-				const events: CalendarEvent[] = items.map(event => ({
-					startDate: new Date(event.startDate * 1000),
-					endDate: new Date(event.endDate * 1000),
-					status: 'no',
-					title: event.title,
-					id: event.id,
-					calendarId: event.calendarID,
-				}));
+				const events: CalendarEvent[] = items.map(event => {
+					// Map iCal availability to status
+					let status: CalendarSlot['status'] = 'no';
+					if (event.availability === 'free') {
+						status = 'yes';
+					} else if (event.availability === 'tentative') {
+						status = 'if-need-be';
+					} else {
+						// 'busy', 'unavailable', or missing => 'no'
+						status = 'no';
+					}
+
+					return {
+						startDate: new Date(event.startDate * 1000),
+						endDate: new Date(event.endDate * 1000),
+						status,
+						title: event.title,
+						id: event.id,
+						calendarId: event.calendarID,
+					};
+				});
 				console.log('Returning', events);
 				resolve(events);
 				setTimeout(() => {

@@ -1,5 +1,9 @@
 export type CalendarStatus = 'yes' | 'could-be' | 'if-need-be' | 'no';
 
+// Combine "off" with event statuses for calendar selection
+export type OptionsCalendarStatus = 'off' | CalendarStatus;
+export type SelectedCalendars = Record<string, OptionsCalendarStatus>;
+
 export type TimeRange = {
 	startDate: Date;
 	endDate: Date;
@@ -16,6 +20,9 @@ export type CalendarEvent = {
 	status: CalendarStatus;
 	title: string;
 	calendarId: string;
+	overridden?: boolean;
+	bridgeStatus?: CalendarStatus; // Original status from iCal availability
+	calendarDefaultStatus?: CalendarStatus; // Status from calendar selection
 } & TimeRange;
 
 export const statusOrder = {

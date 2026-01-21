@@ -60,25 +60,11 @@ class EventoFormFiller extends FormFiller {
 	}
 
 	/**
-	 * Map internal 4-status system to Evento's 2 or 3 statuses
+	 * The calendar-app now handles status conversion based on user preferences.
+	 * This just returns the status as-is since it's already been converted.
 	 */
 	getWanted(slot: CalendarSlot): CalendarSlot['status'] {
-		if (this.supportsTernary) {
-			// Ternary mode: yes/could-be/if-need-be/no → yes/if-need-be/no
-			if (slot.status === 'could-be') {
-				return 'if-need-be';
-			}
-
-			return slot.status;
-		}
-
-		// Binary mode: yes/could-be/if-need-be/no → yes/no
-		// Only "yes" maps to "yes", everything else is "no"
-		if (slot.status === 'yes') {
-			return 'yes';
-		}
-
-		return 'no';
+		return slot.status;
 	}
 
 	close() {
@@ -250,32 +236,28 @@ browserAPI.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 		console.log('Running Evento fill...');
 		if (filler && slots) {
 			// Convert date strings back to Date objects (they get serialized during message passing)
-			const rawEvents = (message.payload as CalendarEvent[]).map(event => ({
+			const events = (message.payload as CalendarEvent[]).map(event => ({
 				...event,
 				startDate: new Date(event.startDate),
 				endDate: new Date(event.endDate),
 			}));
 
-			// Apply status conversion for the form's supported statuses
-			// This ensures the overlay shows what will actually be filled
-			const currentFiller = filler; // Capture for TypeScript
-			const slotsWithConvertedStatus = slots.map(slot => ({
-				...slot,
-				status: currentFiller.getWanted(slot),
-			}));
+			// Determine what statuses this form supports
+			const supportedStatuses: CalendarSlot['status'][] = filler.supportsTernary
+				? ['yes', 'if-need-be', 'no']
+				: ['yes', 'no'];
 
-			// Also convert event statuses so the overlay displays correctly
-			const eventsWithConvertedStatus = rawEvents.map(event => ({
-				...event,
-				status: currentFiller.getWanted(event),
-			}));
-
-			createApp(slotsWithConvertedStatus, eventsWithConvertedStatus, async slots => {
-				console.log('Filling Evento slots', slots);
-				return filler?.fill(slots).finally(() => {
-					filler?.close();
-				});
-			});
+			createApp(
+				slots,
+				events,
+				async slots => {
+					console.log('Filling Evento slots', slots);
+					return filler?.fill(slots).finally(() => {
+						filler?.close();
+					});
+				},
+				{supportedStatuses},
+			);
 		}
 
 		return true;

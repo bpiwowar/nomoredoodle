@@ -3,21 +3,18 @@ import {type CalendarEvent, type CalendarSlot} from '../events.js';
 import {FormFiller} from './form-filler.js';
 import {browserAPI} from '../browser-compat.js';
 
-const status2Attribute: {[key in CalendarSlot['status']]: CalendarSlot['status']} = {
-	no: 'no',
-	'could-be': 'if-need-be',
-	'if-need-be': 'if-need-be',
-	yes: 'yes',
-};
-
 abstract class DoodleFormFiller extends FormFiller {
 	container: HTMLElement;
 	observer: undefined | MutationObserver;
+	supportedStatuses: CalendarSlot['status'][];
 
 	constructor(container: HTMLElement) {
 		super();
 
 		this.container = container;
+
+		// Detect what statuses this form supports
+		this.supportedStatuses = this.detectSupportedStatuses();
 
 		this.observer = new MutationObserver(mutations => {
 			for (const mutation of mutations) {
@@ -57,7 +54,9 @@ abstract class DoodleFormFiller extends FormFiller {
 	}
 
 	getWanted(slot: CalendarSlot) {
-		return status2Attribute[slot.status];
+		// The calendar-app now handles status conversion based on user preferences.
+		// This just returns the status as-is since it's already been converted.
+		return slot.status;
 	}
 
 	close() {
@@ -67,6 +66,8 @@ abstract class DoodleFormFiller extends FormFiller {
 			this.observer = undefined;
 		}
 	}
+
+	abstract detectSupportedStatuses(): CalendarSlot['status'][];
 }
 
 class TableDoodleFormFiller extends DoodleFormFiller {
@@ -132,6 +133,12 @@ class TableDoodleFormFiller extends DoodleFormFiller {
 		}
 
 		return ranges;
+	}
+
+	detectSupportedStatuses(): CalendarSlot['status'][] {
+		// For table-based Doodle, assume yes/if-need-be/no
+		// Could detect by checking first slot's available states
+		return ['yes', 'if-need-be', 'no'];
 	}
 }
 
@@ -216,6 +223,12 @@ class ListDoodleFormFiller extends DoodleFormFiller {
 
 		return slots;
 	}
+
+	detectSupportedStatuses(): CalendarSlot['status'][] {
+		// For list-based Doodle, assume yes/if-need-be/no
+		// Could detect by checking first slot's available states
+		return ['yes', 'if-need-be', 'no'];
+	}
 }
 
 let slots: undefined | CalendarSlot[];
@@ -275,13 +288,25 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		console.log(slots, filler);
 		if (filler !== undefined && slots !== undefined) {
 			console.log('Running doodle fill...');
-			createApp(slots, message.payload as CalendarEvent[], async slots => {
-				// Filling slots
-				console.log('Filling slots', slots);
-				return filler?.fill(slots).finally(() => {
-					filler?.close();
-				});
-			});
+			// Convert date strings back to Date objects (they get serialized during message passing)
+			const events = (message.payload as CalendarEvent[]).map(event => ({
+				...event,
+				startDate: new Date(event.startDate),
+				endDate: new Date(event.endDate),
+			}));
+
+			createApp(
+				slots,
+				events,
+				async slots => {
+					// Filling slots
+					console.log('Filling slots', slots);
+					return filler?.fill(slots).finally(() => {
+						filler?.close();
+					});
+				},
+				{supportedStatuses: filler.supportedStatuses},
+			);
 		}
 	}
 });

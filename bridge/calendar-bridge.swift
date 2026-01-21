@@ -114,6 +114,23 @@ func getEvents(start: Date, end: Date, calendarIds: [String]) -> [[String: Any]]
         ]
         if let location = event.location { ev["location"] = location }
         if let notes = event.notes { ev["notes"] = notes }
+
+        // Add availability status (show as: free/busy/tentative/unavailable)
+        switch event.availability {
+        case .free:
+            ev["availability"] = "free"
+        case .busy:
+            ev["availability"] = "busy"
+        case .tentative:
+            ev["availability"] = "tentative"
+        case .unavailable:
+            ev["availability"] = "unavailable"
+        case .notSupported:
+            ev["availability"] = "busy"
+        @unknown default:
+            ev["availability"] = "busy"
+        }
+
         eventsArray.append(ev)
     }
 

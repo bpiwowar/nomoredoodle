@@ -56,7 +56,6 @@
 		"type": "module"
 	},
 	"action": {
-		"default_popup": "popup.html",
-		"default_title": "Select Calendars"
+		"default_title": "Open Time Slot Manager"
 	}
 }
