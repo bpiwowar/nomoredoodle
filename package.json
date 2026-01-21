@@ -36,7 +36,7 @@
 	},
 	"dependencies": {
 		"@types/luxon": "^3.7.1",
-		"@types/react": "^19.1.12",
+		"@types/react": "^19.1.13",
 		"@types/react-dom": "^19.1.9",
 		"@types/xo": "^0.39.9",
 		"eslint-config-xo-react": "^0.28.0",
@@ -45,29 +45,29 @@
 		"luxon": "^3.7.2",
 		"react": "^19.1.1",
 		"react-dom": "^19.1.1",
-		"webext-base-css": "^2.0.1",
-		"webext-options-sync": "^4.2.3"
+		"webext-base-css": "^2.1.0",
+		"webext-options-sync": "^4.3.0"
 	},
 	"devDependencies": {
-		"@parcel/config-webextension": "^2.13.0",
-		"@parcel/resolver-default": "^2.13.0",
-		"@parcel/transformer-inline-string": "^2.13.0",
+		"@parcel/config-webextension": "^2.15.4",
+		"@parcel/resolver-default": "^2.15.4",
+		"@parcel/transformer-inline-string": "^2.15.4",
 		"@tailwindcss/cli": "^4.1.13",
 		"@tailwindcss/postcss": "^4.1.13",
-		"@types/chrome": "^0.1.6",
+		"@types/chrome": "^0.1.11",
 		"@types/firefox-webext-browser": "^120.0.4",
-		"@types/node": "^24.3.0",
+		"@types/node": "^24.5.0",
 		"autoprefixer": "^10.4.21",
-		"npm-run-all2": "^7.0.1",
+		"npm-run-all2": "^8.0.4",
 		"parcel": "^2.15.4",
 		"postcss": "^8.5.6",
 		"process": "^0.11.10",
-		"stylelint": "^16.6.1",
+		"stylelint": "^16.24.0",
 		"stylelint-config-prettier": "^9.0.5",
 		"stylelint-config-xo": "^1.0.2",
 		"tailwindcss": "^4.1.13",
 		"typescript": "^5.9.2",
-		"xo": "^0.59.3"
+		"xo": "^1.2.2"
 	},
 	"@parcel/resolver-default": {
 		"packageExports": true
