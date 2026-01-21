@@ -26,6 +26,8 @@ function formatDate(timestamp: Date): string {
 function TimeSlotManager({slots: _slots, events, fillForm}: {slots: CalendarSlot[]; events: CalendarEvent[]; fillForm: (slots: CalendarSlot[]) => Promise<void>}) {
 	const [slots, setSlots] = React.useState<CalendarSlot[]>(_slots);
 	const [visible, setVisible] = React.useState<boolean>(true);
+	const [error, setError] = React.useState<string | null>(null);
+	const [filling, setFilling] = React.useState<boolean>(false);
 
 	const computedSlots = useMemo(() => slots.map(slot => {
 		if (slot.overridden) {
@@ -143,10 +145,25 @@ function TimeSlotManager({slots: _slots, events, fillForm}: {slots: CalendarSlot
 				<div className='content-center'>
 					<button type='button' onClick={() => {
 						console.log('Clicked on \'fill form\'');
-						fillForm(computedSlots).catch((error: unknown) => {
-							console.error('Error when filling the form', error);
-						});
-					}} className='text-white bg-blue-500 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800'>Fill the form</button>
+						setError(null);
+						setFilling(true);
+						fillForm(computedSlots)
+							.then(() => {
+								setFilling(false);
+							})
+							.catch((error: unknown) => {
+								console.error('Error when filling the form', error);
+								setFilling(false);
+								setError((error as Error)?.message ?? 'Unknown error occurred');
+							});
+					}} disabled={filling} className='text-white bg-blue-500 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed'>
+						{filling ? 'Filling...' : 'Fill the form'}
+					</button>
+					{error && (
+						<div className='mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded'>
+							<strong>Error:</strong> {error}
+						</div>
+					)}
 				</div>
 
 				{/* Events Section */}

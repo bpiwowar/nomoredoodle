@@ -9,9 +9,13 @@ type TabMessage = {type: 'get-range'} | {type: 'runFill'; payload: CalendarSlot[
 
 async function fillSlots(tab_id: number) {
 	console.log('Filling on', tab_id);
-	const {startDate, endDate} = await browserAPI.tabs.sendMessage<TabMessage, TimeRange>(tab_id, {
+	const response = await browserAPI.tabs.sendMessage<TabMessage, TimeRange>(tab_id, {
 		type: 'get-range',
 	});
+
+	// Convert serialized dates back to Date objects
+	const startDate = new Date(response.startDate);
+	const endDate = new Date(response.endDate);
 
 	const {selectedCalendars = {}} = (await browserAPI.storage.local.get('selectedCalendars')) as {selectedCalendars?: SelectedCalendars};
 	const selectedIds = Object.entries(selectedCalendars).filter(([_, sel]) => (sel !== 'off')).map(([calId, _]) => calId);
@@ -35,7 +39,10 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		console.log('Checking if current page is supported');
 		browserAPI.tabs.query({active: true, currentWindow: true}, tabs => {
 			const tab = tabs[0];
-			const isSupported = Boolean(tab?.url?.includes('doodle.com'));
+			const isSupported = Boolean(
+				tab?.url?.includes('doodle.com')
+				|| tab?.url?.includes('evento.renater.fr/survey'),
+			);
 			sendResponse({supported: isSupported});
 			console.log(`Is supported: ${isSupported}`);
 		});

@@ -24,7 +24,8 @@
 		"notifications"
 	],
 	"host_permissions": [
-		"*://doodle.com/*"
+		"*://doodle.com/*",
+		"*://evento.renater.fr/*"
 	],
 	"content_scripts": [
 		{
@@ -33,6 +34,17 @@
 			],
 			"js": [
 				"sites/doodle.ts"
+			],
+			"css": [
+			],
+			"run_at": "document_end"
+		},
+		{
+			"matches": [
+				"https://evento.renater.fr/survey/*"
+			],
+			"js": [
+				"sites/evento.ts"
 			],
 			"css": [
 			],
