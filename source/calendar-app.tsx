@@ -147,8 +147,22 @@ function TimeSlotManager({
 		const currentCalendarStatus = calendarStatuses[event.calendarId] || 'off';
 		const calendarDefaultStatus = currentCalendarStatus === 'off' ? 'yes' : currentCalendarStatus;
 
-		// Use bridgeStatus (from iCal), fallback to current calendar default
-		const status = event.bridgeStatus || calendarDefaultStatus;
+		// Logic: "free" events override calendar default, "busy" events respect calendar default
+		let status: CalendarStatus;
+		const bridgeStatus = event.bridgeStatus;
+		if (bridgeStatus === 'yes') {
+			// Free events override the calendar default
+			status = 'yes';
+		} else if (bridgeStatus === 'no') {
+			// Busy events respect the calendar default
+			status = calendarDefaultStatus;
+		} else if (bridgeStatus) {
+			// Tentative or other statuses use the bridge status
+			status = bridgeStatus;
+		} else {
+			// Fallback to calendar default if no bridge status
+			status = calendarDefaultStatus;
+		}
 
 		// Update the calendarDefaultStatus to reflect current state
 		return {...event, status, calendarDefaultStatus};

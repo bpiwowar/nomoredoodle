@@ -29,13 +29,12 @@ async function fillSlots(tab_id: number) {
 			const bridgeStatus = event.status; // Original status from iCal availability
 			const calendarDefaultStatus = offToYes(selectedCalendars[event.calendarId]);
 
-			// Priority: override (handled in UI) > iCal status > calendar default
-			// Use iCal status from bridge as the primary status
+			// Just pass the raw data - let calendar-app handle the logic
 			return {
 				...event,
 				bridgeStatus, // Preserve original status from bridge
 				calendarDefaultStatus, // Store calendar's default status for reference
-				status: bridgeStatus, // Use iCal status from bridge
+				status: bridgeStatus, // Pass through the bridge status
 			};
 		}),
 	});
