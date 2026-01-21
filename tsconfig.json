@@ -13,5 +13,5 @@
 			"chrome"
 		]
   },
-  "include": ["source/**/*.ts", "source/popup.tsx"]
+  "include": ["source/**/*.ts", "source/**/*.tsx"]
 }

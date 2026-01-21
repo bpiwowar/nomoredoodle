@@ -1,7 +1,8 @@
-// eslint-disable-next-line import/no-unassigned-import
 import './options-storage.js';
 import {getEvents, getCalendars} from './native-calendar.js';
-import {CalendarStatus, type CalendarSlot, type TimeRange, type OptionsCalendarStatus, type SelectedCalendars} from './events.js';
+import {
+CalendarStatus, type CalendarSlot, type TimeRange, type OptionsCalendarStatus, type SelectedCalendars,
+} from './events.js';
 import {browserAPI} from './browser-compat.js';
 
 type TabMessage = {type: 'get-range'} | {type: 'runFill'; payload: CalendarSlot[]};
@@ -46,10 +47,8 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		console.log('Checking if current page is supported');
 		browserAPI.tabs.query({active: true, currentWindow: true}, tabs => {
 			const tab = tabs[0];
-			const isSupported = Boolean(
-				tab?.url?.includes('doodle.com')
-				|| tab?.url?.includes('evento.renater.fr/survey'),
-			);
+			const isSupported = Boolean(tab?.url?.includes('doodle.com')
+				|| tab?.url?.includes('evento.renater.fr/survey'));
 			sendResponse({supported: isSupported});
 			console.log(`Is supported: ${isSupported}`);
 		});
@@ -67,6 +66,7 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				sendResponse({error: (error as Error)?.message ?? 'Failed to get calendars'});
 			}
 		})();
+
 		return true; // Keep channel open for async response
 	}
 
@@ -81,6 +81,7 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 						type: 'basic',
 						title: 'Meeting schedule filled',
 						message: 'All good',
+					iconUrl: 'icon.png',
 					});
 					sendResponse({success: true});
 				} catch (error) {
@@ -89,6 +90,7 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 						type: 'basic',
 						title: 'Error',
 						message: `Got errors when filling: ${(error as Error)?.message}`,
+					iconUrl: 'icon.png',
 					});
 					sendResponse({success: false, error: (error as Error)?.message});
 				}
@@ -104,13 +106,11 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // Handle extension icon clicks
-browserAPI.action.onClicked.addListener(async (tab) => {
+browserAPI.action.onClicked.addListener(async tab => {
 	if (tab.id) {
 		// Check if page is supported
-		const isSupported = Boolean(
-			tab?.url?.includes('doodle.com')
-			|| tab?.url?.includes('evento.renater.fr/survey'),
-		);
+		const isSupported = Boolean(tab?.url?.includes('doodle.com')
+			|| tab?.url?.includes('evento.renater.fr/survey'));
 
 		if (isSupported) {
 			// Trigger the overlay
@@ -121,6 +121,7 @@ browserAPI.action.onClicked.addListener(async (tab) => {
 						type: 'basic',
 						title: 'Meeting schedule filled',
 						message: 'All good',
+				iconUrl: 'icon.png',
 					});
 				})
 				.catch(async (error: unknown) => {
@@ -129,6 +130,7 @@ browserAPI.action.onClicked.addListener(async (tab) => {
 						type: 'basic',
 						title: 'Error',
 						message: `Got errors when filling: ${(error as Error)?.message}`,
+					iconUrl: 'icon.png',
 					});
 				});
 		} else {
@@ -137,6 +139,7 @@ browserAPI.action.onClicked.addListener(async (tab) => {
 				type: 'basic',
 				title: 'No More Doodle',
 				message: 'Navigate to a Doodle or Evento page to use this extension.',
+			iconUrl: 'icon.png',
 			});
 		}
 	}

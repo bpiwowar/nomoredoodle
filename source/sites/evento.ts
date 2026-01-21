@@ -1,7 +1,7 @@
 import {createApp} from '../calendar-app.js';
 import {type CalendarEvent, type CalendarSlot} from '../events.js';
-import {FormFiller} from './form-filler.js';
 import {browserAPI} from '../browser-compat.js';
+import {FormFiller} from './form-filler.js';
 
 const radioValue2Status: Record<string, CalendarSlot['status']> = {
 	selected_value_yes: 'yes',
@@ -77,9 +77,7 @@ class EventoFormFiller extends FormFiller {
 
 	getStatus(slotId: string): CalendarSlot['status'] | undefined {
 		// Find all radios for this slot
-		const radios = this.container.querySelectorAll<HTMLInputElement>(
-			`input[type="radio"][name="proposition_${slotId}"]`,
-		);
+		const radios = this.container.querySelectorAll<HTMLInputElement>(`input[type="radio"][name="proposition_${slotId}"]`);
 
 		for (const radio of radios) {
 			if (radio.checked) {
@@ -102,9 +100,7 @@ class EventoFormFiller extends FormFiller {
 		}
 
 		// Find the radio with this value
-		const radio = this.container.querySelector<HTMLInputElement>(
-			`input[type="radio"][name="proposition_${slotId}"][value="${radioValue}"]`,
-		);
+		const radio = this.container.querySelector<HTMLInputElement>(`input[type="radio"][name="proposition_${slotId}"][value="${radioValue}"]`);
 
 		if (!radio) {
 			console.error(`Could not find radio for slot ${slotId} with value ${radioValue}`);
@@ -130,7 +126,7 @@ class EventoFormFiller extends FormFiller {
 		for (const buttonGroup of buttonGroups) {
 			// Find a radio button to extract the slot ID
 			const radio = buttonGroup.querySelector<HTMLInputElement>('input[type="radio"]');
-			if (!radio || !radio.name.startsWith('proposition_')) {
+			if (!radio?.name.startsWith('proposition_')) {
 				continue;
 			}
 
@@ -243,7 +239,7 @@ browserAPI.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 			}));
 
 			// Determine what statuses this form supports
-			const supportedStatuses: CalendarSlot['status'][] = filler.supportsTernary
+			const supportedStatuses: Array<CalendarSlot['status']> = filler.supportsTernary
 				? ['yes', 'if-need-be', 'no']
 				: ['yes', 'no'];
 

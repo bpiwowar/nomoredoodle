@@ -1,12 +1,12 @@
 import {createApp} from '../calendar-app.js';
 import {type CalendarEvent, type CalendarSlot} from '../events.js';
-import {FormFiller} from './form-filler.js';
 import {browserAPI} from '../browser-compat.js';
+import {FormFiller} from './form-filler.js';
 
 abstract class DoodleFormFiller extends FormFiller {
 	container: HTMLElement;
 	observer: undefined | MutationObserver;
-	supportedStatuses: CalendarSlot['status'][];
+	supportedStatuses: Array<CalendarSlot['status']>;
 
 	constructor(container: HTMLElement) {
 		super();
@@ -21,7 +21,7 @@ abstract class DoodleFormFiller extends FormFiller {
 				// Console.log('Mutation detected:', mutation);
 				if (mutation.target.nodeType === Node.ELEMENT_NODE) {
 					const target = mutation.target as HTMLElement;
-					let voteId = target.dataset.voteId;
+					let {voteId} = target.dataset;
 					if (voteId) {
 						const newStatus = this.getStatus(voteId);
 						console.log(`${voteId} has changed status: ${newStatus}`);
@@ -67,7 +67,7 @@ abstract class DoodleFormFiller extends FormFiller {
 		}
 	}
 
-	abstract detectSupportedStatuses(): CalendarSlot['status'][];
+	abstract detectSupportedStatuses(): Array<CalendarSlot['status']>;
 }
 
 class TableDoodleFormFiller extends DoodleFormFiller {
@@ -84,13 +84,13 @@ class TableDoodleFormFiller extends DoodleFormFiller {
 		for (const className of option.classList.values()) {
 			// Console.log("Looking at", className)
 			switch (className.toString()) {
-				case 'Vote--no': { return 'no';
+				case 'Vote--no': {return 'no';
 				}
 
-				case 'Vote--if-need-be': { return 'if-need-be';
+				case 'Vote--if-need-be': {return 'if-need-be';
 				}
 
-				case 'Vote--accepted': { return 'yes';
+				case 'Vote--accepted': {return 'yes';
 				}
 
 				default:
@@ -135,7 +135,7 @@ class TableDoodleFormFiller extends DoodleFormFiller {
 		return ranges;
 	}
 
-	detectSupportedStatuses(): CalendarSlot['status'][] {
+	detectSupportedStatuses(): Array<CalendarSlot['status']> {
 		// For table-based Doodle, assume yes/if-need-be/no
 		// Could detect by checking first slot's available states
 		return ['yes', 'if-need-be', 'no'];
@@ -224,7 +224,7 @@ class ListDoodleFormFiller extends DoodleFormFiller {
 		return slots;
 	}
 
-	detectSupportedStatuses(): CalendarSlot['status'][] {
+	detectSupportedStatuses(): Array<CalendarSlot['status']> {
 		// For list-based Doodle, assume yes/if-need-be/no
 		// Could detect by checking first slot's available states
 		return ['yes', 'if-need-be', 'no'];
@@ -266,7 +266,7 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		console.log('Getting slots...');
 		const slots = getSlots();
 		if (!slots) {
-			return null;
+			return;
 		}
 
 		const range = {startDate: slots[0].startDate, endDate: slots[0].endDate};

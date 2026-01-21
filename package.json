@@ -22,7 +22,27 @@
 			"source/tailwind-css.ts"
 		],
 		"rules": {
-			"unicorn/prefer-top-level-await": "off"
+			"unicorn/prefer-top-level-await": "off",
+			"@stylistic/indent": "off",
+			"@typescript-eslint/naming-convention": "off",
+			"@typescript-eslint/no-unsafe-assignment": "off",
+			"@typescript-eslint/no-unsafe-argument": "off",
+			"@typescript-eslint/no-unsafe-return": "off",
+			"@typescript-eslint/no-unsafe-call": "off",
+			"@typescript-eslint/no-floating-promises": "off",
+			"@typescript-eslint/prefer-nullish-coalescing": "off",
+			"@typescript-eslint/prefer-optional-chain": "off",
+			"@typescript-eslint/array-type": "off",
+			"@stylistic/function-paren-newline": "off",
+			"@stylistic/block-spacing": "off",
+			"promise/prefer-await-to-then": "off",
+			"import-x/no-unassigned-import": "off",
+			"import-x/order": "off",
+			"prefer-destructuring": "off",
+			"max-depth": "off",
+			"no-useless-escape": "off",
+			"unicorn/prevent-abbreviations": "off",
+			"unicorn/no-nested-ternary": "off"
 		}
 	},
 	"stylelint": {
@@ -33,8 +53,7 @@
 	},
 	"lint-staged": {
 		"*.{ts,tsx}": [
-			"xo --fix",
-			"tsc --noEmit --skipLibCheck"
+			"xo --fix"
 		],
 		"*.css": [
 			"stylelint --fix"

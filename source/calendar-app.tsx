@@ -2,7 +2,7 @@ import React, {type CSSProperties, useMemo, useEffect} from 'react';
 import {createRoot, type Root} from 'react-dom/client';
 import {tailwindCSS} from './tailwind-css.js';
 import {
-	type CalendarSlot, type CalendarEvent, calculateSlotStatus, doRangesIntersect, type OptionsCalendarStatus, type SelectedCalendars,
+	type CalendarSlot, type CalendarEvent, type CalendarStatus, calculateSlotStatus, doRangesIntersect, type OptionsCalendarStatus, type SelectedCalendars,
 } from './events.js';
 import {browserAPI} from './browser-compat.js';
 
@@ -74,12 +74,12 @@ function TimeSlotManager({
 	const [slots, setSlots] = React.useState<CalendarSlot[]>(_slots);
 	const [events, setEvents] = React.useState<CalendarEvent[]>(_events);
 	const [visible, setVisible] = React.useState<boolean>(true);
-	const [error, setError] = React.useState<string | null>(null);
+	const [error, setError] = React.useState<string | undefined>(undefined);
 	const [filling, setFilling] = React.useState<boolean>(false);
 	const [activeTab, setActiveTab] = React.useState<string>('slots');
 	const [calendars, setCalendars] = React.useState<CalendarsGrouped>({});
 	const [calendarsLoading, setCalendarsLoading] = React.useState<boolean>(true);
-	const [calendarsError, setCalendarsError] = React.useState<string | null>(null);
+	const [calendarsError, setCalendarsError] = React.useState<string | undefined>(undefined);
 	const [calendarStatuses, setCalendarStatuses] = React.useState<Record<string, OptionsCalendarStatus>>({});
 	const [statusMapping, setStatusMapping] = React.useState<{
 		'could-be': CalendarSlot['status'];
@@ -94,10 +94,10 @@ function TimeSlotManager({
 			try {
 				console.log('Loading calendars...');
 				setCalendarsLoading(true);
-				setCalendarsError(null);
+				setCalendarsError(undefined);
 
 				// Request calendars from background script
-				const response = await browserAPI.runtime.sendMessage({type: 'getCalendars'});
+				const response = await (browserAPI.runtime.sendMessage as (message: any) => Promise<any>)({type: 'getCalendars'}) as {error?: string; calendars?: CalendarsGrouped};
 
 				if (response.error) {
 					throw new Error(response.error);
@@ -148,21 +148,12 @@ function TimeSlotManager({
 		const calendarDefaultStatus = currentCalendarStatus === 'off' ? 'yes' : currentCalendarStatus;
 
 		// Logic: "free" events override calendar default, "busy" events respect calendar default
-		let status: CalendarStatus;
-		const bridgeStatus = event.bridgeStatus;
-		if (bridgeStatus === 'yes') {
-			// Free events override the calendar default
-			status = 'yes';
-		} else if (bridgeStatus === 'no') {
-			// Busy events respect the calendar default
-			status = calendarDefaultStatus;
-		} else if (bridgeStatus) {
-			// Tentative or other statuses use the bridge status
-			status = bridgeStatus;
-		} else {
-			// Fallback to calendar default if no bridge status
-			status = calendarDefaultStatus;
-		}
+		const {bridgeStatus} = event;
+		const status: CalendarStatus = (bridgeStatus === 'yes')
+			? 'yes' // Free events override the calendar default
+			: ((bridgeStatus === 'no')
+				? calendarDefaultStatus // Busy events respect the calendar default
+				: bridgeStatus ?? calendarDefaultStatus); // Tentative or fallback to calendar default
 
 		// Update the calendarDefaultStatus to reflect current state
 		return {...event, status, calendarDefaultStatus};
@@ -191,14 +182,12 @@ function TimeSlotManager({
 
 	const handleSlotStatusChange = (id: string, status: CalendarSlot['status']) => {
 		setSlots(slots.map(slot =>
-			slot.id === id ? {...slot, status, overridden: true} : slot,
-		));
+			slot.id === id ? {...slot, status, overridden: true} : slot));
 	};
 
 	const handleResetSlot = (id: string) => {
 		setSlots(slots.map(slot =>
-			slot.id === id ? {...slot, overridden: false} : slot,
-		));
+			slot.id === id ? {...slot, overridden: false} : slot));
 	};
 
 	const handleResetAll = () => {
@@ -207,14 +196,12 @@ function TimeSlotManager({
 
 	const handleEventStatusChange = (id: string, status: CalendarSlot['status']) => {
 		setEvents(events.map(event =>
-			event.id === id ? {...event, status, overridden: true} : event,
-		));
+			event.id === id ? {...event, status, overridden: true} : event));
 	};
 
 	const handleResetEvent = (id: string) => {
 		setEvents(events.map(event =>
-			event.id === id ? {...event, overridden: false} : event,
-		));
+			event.id === id ? {...event, overridden: false} : event));
 	};
 
 	const handleResetAllEvents = () => {
@@ -263,8 +250,7 @@ function TimeSlotManager({
 		overflow: 'auto',
 	};
 
-	const tabButtonStyle = (isActive: boolean): CSSProperties => {
-		return {
+	const tabButtonStyle = (isActive: boolean): CSSProperties => ({
 			padding: '12px 24px',
 			fontWeight: '600',
 			fontSize: '16px',
@@ -275,8 +261,7 @@ function TimeSlotManager({
 			borderTopRightRadius: '8px',
 			cursor: 'pointer',
 			boxShadow: isActive ? '0 4px 6px rgba(0,0,0,0.1)' : 'none',
-		};
-	};
+		});
 
 	if (!visible) {
 		const showButtonStyle: CSSProperties = {
@@ -302,7 +287,9 @@ function TimeSlotManager({
 		{/* Header */}
 		<div style={{padding: '16px', borderBottom: '1px solid #d1d5db', background: 'linear-gradient(to right, #eff6ff, #f9fafb)'}}>
 			<div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-				<h1 style={{fontSize: '24px', fontWeight: 'bold', color: '#1f2937', margin: 0}}>Time Slot Manager</h1>
+				<h1 style={{
+fontSize: '24px', fontWeight: 'bold', color: '#1f2937', margin: 0,
+}}>Time Slot Manager</h1>
 				<button
 					onClick={() => {
 						setVisible(false);
@@ -331,17 +318,23 @@ function TimeSlotManager({
 		</div>
 
 		{/* Tabs */}
-		<div style={{display: 'flex', gap: '8px', padding: '12px 16px 0 16px', backgroundColor: '#f3f4f6'}}>
+		<div style={{
+display: 'flex', gap: '8px', padding: '12px 16px 0 16px', backgroundColor: '#f3f4f6',
+}}>
 			<button
 				onClick={() => {
 					setActiveTab('slots');
 				}}
 				style={tabButtonStyle(activeTab === 'slots')}
 				onMouseEnter={e => {
-					if (activeTab !== 'slots') e.currentTarget.style.backgroundColor = '#d1d5db';
+					if (activeTab !== 'slots') {
+e.currentTarget.style.backgroundColor = '#d1d5db';
+}
 				}}
 				onMouseLeave={e => {
-					if (activeTab !== 'slots') e.currentTarget.style.backgroundColor = '#e5e7eb';
+					if (activeTab !== 'slots') {
+e.currentTarget.style.backgroundColor = '#e5e7eb';
+}
 				}}
 			>
 				Slots
@@ -352,10 +345,14 @@ function TimeSlotManager({
 				}}
 				style={tabButtonStyle(activeTab === 'calendars')}
 				onMouseEnter={e => {
-					if (activeTab !== 'calendars') e.currentTarget.style.backgroundColor = '#d1d5db';
+					if (activeTab !== 'calendars') {
+e.currentTarget.style.backgroundColor = '#d1d5db';
+}
 				}}
 				onMouseLeave={e => {
-					if (activeTab !== 'calendars') e.currentTarget.style.backgroundColor = '#e5e7eb';
+					if (activeTab !== 'calendars') {
+e.currentTarget.style.backgroundColor = '#e5e7eb';
+}
 				}}
 			>
 				Calendars
@@ -366,10 +363,14 @@ function TimeSlotManager({
 				}}
 				style={tabButtonStyle(activeTab === 'events')}
 				onMouseEnter={e => {
-					if (activeTab !== 'events') e.currentTarget.style.backgroundColor = '#d1d5db';
+					if (activeTab !== 'events') {
+e.currentTarget.style.backgroundColor = '#d1d5db';
+}
 				}}
 				onMouseLeave={e => {
-					if (activeTab !== 'events') e.currentTarget.style.backgroundColor = '#e5e7eb';
+					if (activeTab !== 'events') {
+e.currentTarget.style.backgroundColor = '#e5e7eb';
+}
 				}}
 			>
 				Events
@@ -382,7 +383,9 @@ function TimeSlotManager({
 			{activeTab === 'slots' && (
 				<div>
 					{/* Action buttons - sticky at top */}
-					<div style={{position: 'sticky', top: 0, backgroundColor: 'white', borderBottom: '1px solid #d1d5db', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', zIndex: 10}}>
+					<div style={{
+position: 'sticky', top: 0, backgroundColor: 'white', borderBottom: '1px solid #d1d5db', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', zIndex: 10,
+}}>
 						<div style={{display: 'flex', gap: '12px'}}>
 							<button
 								onClick={handleResetSlots}
@@ -408,7 +411,7 @@ function TimeSlotManager({
 							</button>
 							<button
 								onClick={() => {
-									setError(null);
+									setError(undefined);
 									setFilling(true);
 									fillForm(computedSlots)
 										.then(() => {
@@ -434,10 +437,14 @@ function TimeSlotManager({
 									opacity: filling ? 0.5 : 1,
 								}}
 								onMouseEnter={e => {
-									if (!filling) e.currentTarget.style.backgroundColor = '#2563eb';
+									if (!filling) {
+e.currentTarget.style.backgroundColor = '#2563eb';
+}
 								}}
 								onMouseLeave={e => {
-									if (!filling) e.currentTarget.style.backgroundColor = '#3b82f6';
+									if (!filling) {
+e.currentTarget.style.backgroundColor = '#3b82f6';
+}
 								}}
 							>
 								{filling ? '⏳ Filling...' : '✓ Fill Form'}
@@ -573,19 +580,25 @@ function TimeSlotManager({
 						<p className='text-sm text-gray-600 mb-4'>
 							Click on a calendar to cycle through statuses: Off → If Need Be → Could Be → No → Yes
 						</p>
-						{calendarsLoading ? (
+						{calendarsLoading
+? (
 							<div className='text-center text-gray-500 py-4'>
 								Loading calendars...
 							</div>
-						) : calendarsError ? (
+						)
+: calendarsError
+? (
 							<div className='p-4 bg-red-100 border border-red-400 text-red-700 rounded'>
 								<strong>Error:</strong> {calendarsError}
 							</div>
-						) : Object.keys(calendars).length === 0 ? (
+						)
+: Object.keys(calendars).length === 0
+? (
 							<div className='text-center text-gray-500 py-4'>
 								No calendars found
 							</div>
-						) : (
+						)
+: (
 							<>
 								{Object.entries(calendars).map(([provider, cals]) => (
 									<div key={provider} className='mb-4'>
@@ -627,7 +640,9 @@ function TimeSlotManager({
 			{activeTab === 'events' && (
 				<div>
 					{/* Reset button - sticky at top */}
-					<div style={{position: 'sticky', top: 0, backgroundColor: 'white', borderBottom: '1px solid #d1d5db', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', zIndex: 10}}>
+					<div style={{
+position: 'sticky', top: 0, backgroundColor: 'white', borderBottom: '1px solid #d1d5db', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', zIndex: 10,
+}}>
 						<button
 							onClick={handleResetAllEvents}
 							style={{
@@ -745,7 +760,7 @@ const wrapperDivId = 'no-more-doodle-dialog';
 let root: Root | undefined;
 
 type FormOptions = {
-	supportedStatuses: CalendarSlot['status'][];
+	supportedStatuses: Array<CalendarSlot['status']>;
 };
 
 export function createApp(

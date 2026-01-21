@@ -120,7 +120,6 @@ export abstract class FormFiller {
 		const queue = new RequestQueue();
 
 		for (const slot of slots) {
-			/* eslint-disable-next-line @typescript-eslint/no-floating-promises */
 			queue.enqueue(async () => this.changeStatusAsync(slot.id, slot.status));
 		}
 
