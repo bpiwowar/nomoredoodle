@@ -6,6 +6,7 @@
 	"homepage_url": "https://github.com/bpiwowar/nomoredoodle",
 	"manifest_version": 3,
 	"minimum_chrome_version": "121",
+	"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYqwIDAQAB",
 	"browser_specific_settings": {
 		"gecko": {
 			"id": "no-more-doodle@piwowarski.fr",
@@ -40,10 +41,7 @@
 	],
 	"background": {
 		"service_worker": "background.ts",
-		"type": "module",
-		"scripts": [
-			"background.ts"
-		]
+		"type": "module"
 	},
 	"action": {
 		"default_popup": "popup.html",

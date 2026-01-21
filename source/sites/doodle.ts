@@ -1,6 +1,7 @@
 import {createApp} from '../calendar-app.js';
 import {type CalendarEvent, type CalendarSlot} from '../events.js';
 import {FormFiller} from './form-filler.js';
+import {browserAPI} from '../browser-compat.js';
 
 const status2Attribute: {[key in CalendarSlot['status']]: CalendarSlot['status']} = {
 	no: 'no',
@@ -247,7 +248,7 @@ function getSlots() {
 	return slots;
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	if (message.type === 'get-range') {
 		console.log('Getting slots...');
 		const slots = getSlots();

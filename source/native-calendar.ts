@@ -1,6 +1,7 @@
 // Types for calendars
 
 import {type CalendarStatus, type CalendarEvent, type CalendarSlot} from './events.js';
+import {browserAPI} from './browser-compat.js';
 
 const bridgeId = 'fr.piwowarski.calendar.bridge';
 
@@ -29,16 +30,12 @@ type EventItem = {
 	notes?: string;
 };
 
-// Use browser if available, otherwise chrome
-const extension: typeof browser | typeof chrome
-	= typeof browser === 'undefined' ? chrome : browser;
-
 // Helper to connect to native host
 export async function getCalendars(hostName: string = bridgeId): Promise<CalendarsGrouped> {
 	return new Promise((resolve, reject) => {
 		let resolved = false;
 
-		const port = extension.runtime.connectNative(hostName);
+		const port = browserAPI.runtime.connectNative(hostName);
 
 		// Optional timeout: reject only if nothing arrives in 5 seconds
 		const timeout = setTimeout(() => {
@@ -70,7 +67,7 @@ export async function getCalendars(hostName: string = bridgeId): Promise<Calenda
 			// Only reject if we haven't resolved AND timeout hasn't fired
 			if (!resolved) {
 				const errorMessage
-						= extension.runtime.lastError?.message ?? 'Native bridge disconnected before sending a response (but may still succeed)';
+						= browserAPI.runtime.lastError?.message ?? 'Native bridge disconnected before sending a response (but may still succeed)';
 				console.warn(errorMessage); // Just log
 			}
 		});
@@ -90,7 +87,7 @@ export async function getCalendars(hostName: string = bridgeId): Promise<Calenda
  */
 export async function getEvents(start: Date, end: Date, calendarIds: string[]): Promise<CalendarEvent[]> {
 	return new Promise((resolve, reject) => {
-		const port = chrome.runtime.connectNative(bridgeId);
+		const port = browserAPI.runtime.connectNative(bridgeId);
 		let resolved = false;
 
 		const timeout = setTimeout(() => {

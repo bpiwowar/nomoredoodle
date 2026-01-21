@@ -12,11 +12,36 @@ A native macOS bridge (so that your calendar can be read) must be built (there i
 swiftc -framework EventKit calendar-bridge.swift -o calendar-bridge
 ```
 
-Move the binary where ever you want, and then run `./calendar-bridge --register` once. You should see something like
+Move the binary wherever you want, and then register it for your browser(s):
 
-```txt
-Native host registered at /Users/.../Library/Application Support/Mozilla/NativeMessagingHosts/fr.piwowarski.calendar.bridge.json
+**For Firefox:**
+```sh
+./calendar-bridge --register-firefox
 ```
+
+**For Chrome:**
+```sh
+./calendar-bridge --register-chrome
+```
+
+**For Chromium:**
+```sh
+./calendar-bridge --register-chromium
+```
+
+**For all browsers at once:**
+```sh
+./calendar-bridge --register
+```
+
+You should see output like:
+```txt
+Native host registered for firefox at /Users/.../Library/Application Support/Mozilla/NativeMessagingHosts/fr.piwowarski.calendar.bridge.json
+Native host registered for chrome at /Users/.../Library/Application Support/Google/Chrome/NativeMessagingHosts/fr.piwowarski.calendar.bridge.json
+Native host registered for chromium at /Users/.../Library/Application Support/Chromium/NativeMessagingHosts/fr.piwowarski.calendar.bridge.json
+```
+
+**Note for Chrome users:** After installing the extension in Chrome, you may need to update the bridge's manifest file to include your extension's ID. The extension ID can be found on `chrome://extensions/` when you load the extension.
 
 ## Development
 
@@ -30,11 +55,25 @@ The build step will create the `distribution` folder, this folder will contain t
 
 ### 🏃 Run the extension
 
-Using [web-ext](https://extensionworkshop.com/documentation/develop/getting-started-with-web-ext/) is recommended for automatic reloading and running in a dedicated browser instance. Alternatively you can load the extension manually (see below).
+**For Firefox:**
+Using [web-ext](https://extensionworkshop.com/documentation/develop/getting-started-with-web-ext/) is recommended for automatic reloading.
 
 1. Run `npm run watch` to watch for file changes and build continuously
-1. Run `npm install --global web-ext` (only only for the first time)
-1. In another terminal, run `web-ext run -t chromium` or `web-ext run -t firefox-desktop`
+1. Run `npm install --global web-ext` (only for the first time)
+1. In another terminal, run: `web-ext run -t firefox-desktop`
+
+**For Chrome/Chromium:**
+Due to native messaging limitations with temporary profiles, you need to load the extension manually:
+
+1. Run `npm run watch` to watch for file changes and build continuously
+1. Open Chrome/Chromium
+1. Go to `chrome://extensions/`
+1. Enable "Developer mode" (toggle in top-right)
+1. Click "Load unpacked"
+1. Select the `distribution` folder
+1. The extension will auto-reload when you make changes (just refresh if needed)
+
+**Note:** Make sure you've registered the native bridge for your target browser (see Usage section above).
 
 
 ### 📕 Read the documentation

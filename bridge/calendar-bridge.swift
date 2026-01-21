@@ -123,30 +123,100 @@ func getEvents(start: Date, end: Date, calendarIds: [String]) -> [[String: Any]]
 // MARK: - Registration
 let exePath = URL(fileURLWithPath: CommandLine.arguments[0]).standardized.path
 
-func registerNativeHost() {
+enum Browser {
+    case firefox
+    case chrome
+    case chromium
+
+    var nativeMessagingPath: String {
+        let home = NSHomeDirectory()
+        switch self {
+        case .firefox:
+            return "\(home)/Library/Application Support/Mozilla/NativeMessagingHosts"
+        case .chrome:
+            return "\(home)/Library/Application Support/Google/Chrome/NativeMessagingHosts"
+        case .chromium:
+            return "\(home)/Library/Application Support/Chromium/NativeMessagingHosts"
+        }
+    }
+
+    func allowedExtensions(chromeExtensionId: String? = nil) -> [String] {
+        switch self {
+        case .firefox:
+            // Firefox uses just the extension ID
+            return ["no-more-doodle@piwowarski.fr"]
+        case .chrome, .chromium:
+            // Chrome uses chrome-extension://ID/ format
+            // This ID is generated from the "key" field in manifest.json
+            let id = chromeExtensionId ?? "eodldnljbjjdpncgefjdnanlkkflempf"
+            return ["chrome-extension://\(id)/"]
+        }
+    }
+}
+
+func registerNativeHost(for browser: Browser, chromeExtensionId: String? = nil) {
+    let allowedList = browser.allowedExtensions(chromeExtensionId: chromeExtensionId)
+    let allowedJSON = allowedList.map { "\"\($0)\"" }.joined(separator: ", ")
+
+    // Chrome uses "allowed_origins", Firefox uses "allowed_extensions"
+    let allowedKey = (browser == .firefox) ? "allowed_extensions" : "allowed_origins"
+
     let hostJSON = """
     {
       "name": "\(bridge_name)",
       "description": "Calendar Bridge",
       "path": "\(exePath)",
       "type": "stdio",
-      "allowed_extensions": ["no-more-doodle@piwowarski.fr"]
+      "\(allowedKey)": [\(allowedJSON)]
     }
     """
-    let hostPath = "\(NSHomeDirectory())/Library/Application Support/Mozilla/NativeMessagingHosts/\(bridge_name).json"
+
+    let dirPath = browser.nativeMessagingPath
+    let hostPath = "\(dirPath)/\(bridge_name).json"
 
     do {
+        // Create directory if it doesn't exist
+        try FileManager.default.createDirectory(atPath: dirPath, withIntermediateDirectories: true, attributes: nil)
         try hostJSON.write(toFile: hostPath, atomically: true, encoding: .utf8)
-        print("Native host registered at \(hostPath)")
+        print("Native host registered for \(browser) at \(hostPath)")
     } catch {
-        print("Failed to register native host: \(error)")
+        print("Failed to register native host for \(browser): \(error)")
     }
 }
 
 // MARK: - Main
 
+// Helper to get extension ID from arguments
+func getChromeExtensionId() -> String? {
+    if let index = CommandLine.arguments.firstIndex(of: "--chrome-id"),
+       index + 1 < CommandLine.arguments.count {
+        return CommandLine.arguments[index + 1]
+    }
+    return nil
+}
+
+let chromeExtId = getChromeExtensionId()
+
+if CommandLine.arguments.contains("--register-firefox") {
+    registerNativeHost(for: .firefox)
+    exit(0)
+}
+
+if CommandLine.arguments.contains("--register-chrome") {
+    registerNativeHost(for: .chrome, chromeExtensionId: chromeExtId)
+    exit(0)
+}
+
+if CommandLine.arguments.contains("--register-chromium") {
+    registerNativeHost(for: .chromium, chromeExtensionId: chromeExtId)
+    exit(0)
+}
+
 if CommandLine.arguments.contains("--register") {
-    registerNativeHost()
+    // Register for all browsers
+    registerNativeHost(for: .firefox)
+    registerNativeHost(for: .chrome, chromeExtensionId: chromeExtId)
+    registerNativeHost(for: .chromium, chromeExtensionId: chromeExtId)
     exit(0)
 }
 

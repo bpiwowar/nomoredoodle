@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {getCalendars} from './native-calendar.js';
 import {type CalendarEvent} from './events.js';
+import {browserAPI} from './browser-compat.js';
 
 type Calendar = {id: string; title: string};
 type CalendarsGrouped = Record<string, Calendar[]>;
@@ -18,12 +19,12 @@ function nextStatus(status: OptionsCalendarStatus): OptionsCalendarStatus {
 }
 
 async function loadStatuses(): Promise<SelectedCalendars> {
-	const {selectedCalendars = {}} = await chrome.storage.local.get('selectedCalendars');
+	const {selectedCalendars = {}} = await browserAPI.storage.local.get('selectedCalendars');
 	return selectedCalendars as SelectedCalendars;
 }
 
 async function saveStatuses(statuses: SelectedCalendars) {
-	await chrome.storage.local.set({selectedCalendars: statuses});
+	await browserAPI.storage.local.set({selectedCalendars: statuses});
 }
 
 const statusIcon: Record<OptionsCalendarStatus, {icon: string; label: string}> = {
@@ -96,14 +97,14 @@ root.render(<Popup />);
 
 const fillButton = document.querySelector<HTMLInputElement>('#fill');
 if (fillButton) {
-	chrome.runtime.sendMessage({type: 'checkSupportedPage'}, resp => {
+	browserAPI.runtime.sendMessage({type: 'checkSupportedPage'}, resp => {
 		console.log('Current page is supported', resp);
 		fillButton.disabled = !resp?.supported;
 	});
 
 	// Handle click
 	fillButton.addEventListener('click', () => {
-		chrome.runtime.sendMessage({type: 'fillSlots'}).catch(() => {
+		browserAPI.runtime.sendMessage({type: 'fillSlots'}).catch(() => {
 			console.error('Error when filling slots');
 		});
 	});
