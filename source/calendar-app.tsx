@@ -49,6 +49,10 @@ const statusOptions = [
 	{value: 'no', label: 'No'},
 ];
 
+function formatTime(date: Date): string {
+	return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
 function formatDate(timestamp: Date): string {
 	return timestamp.toLocaleString(undefined, {
 		year: 'numeric',
@@ -87,6 +91,21 @@ function TimeSlotManager({
 	}>({
 		'could-be': 'no',
 		'if-need-be': 'no',
+	});
+
+	// Global label-to-time mappings: computed from initial slots
+	const [labelTimeMappings, setLabelTimeMappings] = React.useState<Record<string, {start: string; end: string}>>(() => {
+		const mappings: Record<string, {start: string; end: string}> = {};
+		for (const slot of _slots) {
+			if (slot.label && !mappings[slot.label]) {
+				mappings[slot.label] = {
+					start: formatTime(slot.startDate),
+					end: formatTime(slot.endDate),
+				};
+			}
+		}
+
+		return mappings;
 	});
 
 	useEffect(() => {
@@ -185,6 +204,25 @@ function TimeSlotManager({
 			slot.id === id ? {...slot, status, overridden: true} : slot));
 	};
 
+	const handleLabelTimeChange = (label: string, field: 'start' | 'end', time: string) => {
+		setLabelTimeMappings(prev => ({
+			...prev,
+			[label]: {...prev[label], [field]: time},
+		}));
+
+		const slotField = field === 'start' ? 'startDate' : 'endDate';
+		const [hours, minutes] = time.split(':').map(Number);
+		setSlots(slots.map(slot => {
+			if (slot.label !== label) {
+				return slot;
+			}
+
+			const newDate = new Date(slot[slotField]);
+			newDate.setHours(hours, minutes, 0, 0);
+			return {...slot, [slotField]: newDate};
+		}));
+	};
+
 	const handleResetSlot = (id: string) => {
 		setSlots(slots.map(slot =>
 			slot.id === id ? {...slot, overridden: false} : slot));
@@ -193,6 +231,8 @@ function TimeSlotManager({
 	const handleResetAll = () => {
 		setSlots(slots.map(slot => ({...slot, overridden: false})));
 	};
+
+	const eventGroupKey = (event: CalendarEvent) => `${event.title}\0${event.calendarId}`;
 
 	const handleEventStatusChange = (id: string, status: CalendarSlot['status']) => {
 		setEvents(events.map(event =>
@@ -506,6 +546,40 @@ e.currentTarget.style.backgroundColor = '#3b82f6';
 							</div>
 						)}
 
+						{/* Label Time Mappings */}
+						{Object.keys(labelTimeMappings).length > 0 && (
+							<div className='bg-white p-6 rounded-lg shadow'>
+								<h2 className='text-xl font-semibold mb-4'>Label Time Mappings</h2>
+								<p className='text-sm text-gray-600 mb-4'>
+									Adjust the time range for each label. Changes apply to all slots with the same label.
+								</p>
+								<div className='space-y-3'>
+									{Object.entries(labelTimeMappings).map(([label, times]) => (
+										<div key={label} className='flex items-center gap-3'>
+											<span className='text-sm font-bold w-28 truncate' title={label}>{label}</span>
+											<input
+												type='time'
+												value={times.start}
+												onChange={e => {
+													handleLabelTimeChange(label, 'start', e.target.value);
+												}}
+												className='border rounded px-2 py-1 text-sm'
+											/>
+											<span className='text-sm'>-</span>
+											<input
+												type='time'
+												value={times.end}
+												onChange={e => {
+													handleLabelTimeChange(label, 'end', e.target.value);
+												}}
+												className='border rounded px-2 py-1 text-sm'
+											/>
+										</div>
+									))}
+								</div>
+							</div>
+						)}
+
 						{/* Slots list */}
 						<div className='bg-white p-6 rounded-lg shadow'>
 							<h2 className='text-xl font-semibold mb-4'>Time Slots</h2>
@@ -513,10 +587,14 @@ e.currentTarget.style.backgroundColor = '#3b82f6';
 								{computedSlots.map(slot => {
 									const intersectingEvents = getIntersectingEvents(slot);
 									const overriddenStyle = slot.overridden ? 'border-4 border-purple-500' : 'border';
+									const originalSlot = slots.find(s => s.id === slot.id);
 									return (
 										<div key={slot.id} className={`${overriddenStyle} rounded p-4 ${statusColors[slot.status]}`}>
 											<div className='flex justify-between items-start'>
 												<div>
+													{originalSlot?.label && (
+														<p className='font-bold text-base mb-1'>{originalSlot.label}</p>
+													)}
 													<p className='font-medium'>{formatDate(slot.startDate)} - {formatDate(slot.endDate)}</p>
 													<p className='text-sm'>Status: {slot.status} {slot.overridden && '(overridden)'}</p>
 												</div>
@@ -676,7 +754,26 @@ position: 'sticky', top: 0, backgroundColor: 'white', borderBottom: '1px solid #
 								Click reset to restore the iCal status.
 							</p>
 							<div className='space-y-4'>
-								{computedEvents.map(event => {
+								{(() => {
+									// Group events by title + calendarId to collapse recurring events
+									const seen = new Set<string>();
+									const groupCounts = new Map<string, number>();
+									for (const event of computedEvents) {
+										const key = eventGroupKey(event);
+										groupCounts.set(key, (groupCounts.get(key) ?? 0) + 1);
+									}
+
+									return computedEvents.filter(event => {
+										const key = eventGroupKey(event);
+										if (seen.has(key)) {
+											return false;
+										}
+
+										seen.add(key);
+										return true;
+									}).map(event => {
+									const key = eventGroupKey(event);
+									const count = groupCounts.get(key) ?? 1;
 									const overriddenStyle = event.overridden ? 'border-4 border-purple-500' : 'border';
 									const calendarIsOff = (calendarStatuses[event.calendarId] || 'off') === 'off';
 									const boxColor = calendarIsOff ? 'bg-gray-100 border-gray-400 text-gray-600' : statusColors[event.status];
@@ -686,7 +783,10 @@ position: 'sticky', top: 0, backgroundColor: 'white', borderBottom: '1px solid #
 												<div className='flex-1'>
 													<p className='font-medium'>{event.title}</p>
 													<p className='text-sm text-gray-600 italic'>{getCalendarName(event.calendarId)}</p>
-													<p className='text-sm'>{formatDate(event.startDate)} - {formatDate(event.endDate)}</p>
+													<p className='text-sm'>
+														{formatDate(event.startDate)} - {formatDate(event.endDate)}
+														{count > 1 && <span className='ml-2 text-gray-500'>(and {count - 1} more)</span>}
+													</p>
 													<div className='mt-2 space-y-1'>
 														{event.bridgeStatus && (
 															<p className='text-xs text-gray-600'>
@@ -745,7 +845,8 @@ position: 'sticky', top: 0, backgroundColor: 'white', borderBottom: '1px solid #
 											</div>
 										</div>
 									);
-								})}
+								});
+								})()}
 							</div>
 						</div>
 					</div>

@@ -136,3 +136,20 @@ export abstract class FormFiller {
 	abstract changeStatus(slotId: string, target: CalendarSlot['status']): void;
 	abstract extractSlots(): CalendarSlot[];
 }
+
+/**
+ * A form filler for forms where we can directly set values (e.g. radio buttons)
+ * without needing to click-and-observe via MutationObserver.
+ */
+export abstract class DirectFormFiller extends FormFiller {
+	async changeStatusAsync(slotId: string, wanted: CalendarSlot['status']): Promise<void> {
+		const status = this.getStatus(slotId);
+		if (status === wanted) {
+			console.log(`Slot ${slotId} already has status ${wanted}`);
+			return;
+		}
+
+		console.log(`Setting ${slotId} => ${wanted}`);
+		this.changeStatus(slotId, wanted);
+	}
+}

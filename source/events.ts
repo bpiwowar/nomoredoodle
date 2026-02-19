@@ -13,6 +13,7 @@ export type CalendarSlot = {
 	id: string;
 	status: CalendarStatus;
 	overridden?: boolean;
+	label?: string;
 } & TimeRange;
 
 export type CalendarEvent = {

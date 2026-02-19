@@ -25,7 +25,9 @@
 	],
 	"host_permissions": [
 		"*://doodle.com/*",
-		"*://evento.renater.fr/*"
+		"*://evento.renater.fr/*",
+		"*://framadate.org/*",
+		"*://beta.framadate.org/*"
 	],
 	"content_scripts": [
 		{
@@ -45,6 +47,18 @@
 			],
 			"js": [
 				"sites/evento.ts"
+			],
+			"css": [
+			],
+			"run_at": "document_end"
+		},
+		{
+			"matches": [
+				"*://beta.framadate.org/polls/*",
+				"*://framadate.org/polls/*"
+			],
+			"js": [
+				"sites/framadate.ts"
 			],
 			"css": [
 			],

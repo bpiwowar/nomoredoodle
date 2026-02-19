@@ -48,7 +48,8 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		browserAPI.tabs.query({active: true, currentWindow: true}, tabs => {
 			const tab = tabs[0];
 			const isSupported = Boolean(tab?.url?.includes('doodle.com')
-				|| tab?.url?.includes('evento.renater.fr/survey'));
+				|| tab?.url?.includes('evento.renater.fr/survey')
+				|| tab?.url?.includes('framadate.org/polls'));
 			sendResponse({supported: isSupported});
 			console.log(`Is supported: ${isSupported}`);
 		});
@@ -110,7 +111,8 @@ browserAPI.action.onClicked.addListener(async tab => {
 	if (tab.id) {
 		// Check if page is supported
 		const isSupported = Boolean(tab?.url?.includes('doodle.com')
-			|| tab?.url?.includes('evento.renater.fr/survey'));
+			|| tab?.url?.includes('evento.renater.fr/survey')
+			|| tab?.url?.includes('framadate.org/polls'));
 
 		if (isSupported) {
 			// Trigger the overlay
@@ -138,7 +140,7 @@ browserAPI.action.onClicked.addListener(async tab => {
 			await browserAPI.notifications.create({
 				type: 'basic',
 				title: 'No More Doodle',
-				message: 'Navigate to a Doodle or Evento page to use this extension.',
+				message: 'Navigate to a Doodle, Evento, or Framadate page to use this extension.',
 			iconUrl: 'icon.png',
 			});
 		}
