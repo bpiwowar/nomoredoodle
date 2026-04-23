@@ -148,11 +148,13 @@ class ListDoodleFormFiller extends DoodleFormFiller {
 		const item = checkbox?.closest('[data-testid="time-slot-item"]');
 		if (item) {
 			for (const className of item.classList.values()) {
-				if (className.startsWith('time-slot-item_yes')) {
+				// Matches both legacy `time-slot-item_yes` and CSS-module-hashed
+				// variants like `time-slot-item-module__HASH__yes`.
+				if (/(?:^|_)yes$/.test(className)) {
 					return 'yes';
 				}
 
-				if (className.startsWith('time-slot-item_if_need_be')) {
+				if (/(?:^|_)if_need_be$/.test(className)) {
 					return 'if-need-be';
 				}
 			}
@@ -190,8 +192,19 @@ class ListDoodleFormFiller extends DoodleFormFiller {
 
 				const id = input.value;
 
-				const timeString = li.querySelector<HTMLElement>('[data-testid=\'time-slot-time\']')?.textContent?.trim();
-				const durationString = li.querySelector<HTMLElement>('[class^=\'time-slot-details_time-slot-duration\']')?.textContent?.trim();
+				let timeString = li.querySelector<HTMLElement>('[data-testid=\'time-slot-time\']')?.textContent?.trim();
+				let durationString = li.querySelector<HTMLElement>('[class*=\'time-slot-duration\']')?.textContent?.trim();
+
+				if (!timeString || !durationString) {
+					// Fallback: parse the li's aria-label, e.g. "4:00 PM 2 h" or "16:00 30 min".
+					// Doodle's group-poll UI no longer exposes separate time/duration nodes.
+					const ariaLabel = li.getAttribute('aria-label')?.trim() ?? '';
+					const match = /^(.+?)\s+(\d+\s*(?:h|min))\s*$/i.exec(ariaLabel);
+					if (match) {
+						timeString ||= match[1].trim();
+						durationString ||= match[2].trim();
+					}
+				}
 
 				if (!timeString || !durationString) {
 					continue;
