@@ -178,6 +178,14 @@ function TimeSlotManager({
 		return {...event, status, calendarDefaultStatus};
 	}), [events, calendarStatuses]);
 
+	// Only events overlapping at least one candidate slot affect the result, so
+	// the Events tab lists just those (events between slots are noise — common
+	// for grid schedulers like Timeful where the date range has many gaps).
+	const intersectingEvents = useMemo(
+		() => computedEvents.filter(event => slots.some(slot => doRangesIntersect(slot, event))),
+		[computedEvents, slots],
+	);
+
 	const computedSlots = useMemo(() => slots.map(slot => {
 		if (slot.overridden) {
 			// Apply conversion even to overridden slots
@@ -758,12 +766,12 @@ position: 'sticky', top: 0, backgroundColor: 'white', borderBottom: '1px solid #
 									// Group events by title + calendarId to collapse recurring events
 									const seen = new Set<string>();
 									const groupCounts = new Map<string, number>();
-									for (const event of computedEvents) {
+									for (const event of intersectingEvents) {
 										const key = eventGroupKey(event);
 										groupCounts.set(key, (groupCounts.get(key) ?? 0) + 1);
 									}
 
-									return computedEvents.filter(event => {
+									return intersectingEvents.filter(event => {
 										const key = eventGroupKey(event);
 										if (seen.has(key)) {
 											return false;

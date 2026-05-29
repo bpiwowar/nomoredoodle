@@ -1,7 +1,7 @@
 {
 	"$schema": "https://json.schemastore.org/chrome-manifest",
 	"name": "No More Doodle extension",
-	"version": "26.1.21.1",
+	"version": "26.5.29",
 	"description": "Fills up your doodle instantly, using native calendar information",
 	"homepage_url": "https://github.com/bpiwowar/nomoredoodle",
 	"manifest_version": 3,
@@ -27,7 +27,8 @@
 		"*://doodle.com/*",
 		"*://evento.renater.fr/*",
 		"*://framadate.org/*",
-		"*://beta.framadate.org/*"
+		"*://beta.framadate.org/*",
+		"*://timeful.app/*"
 	],
 	"content_scripts": [
 		{
@@ -59,6 +60,17 @@
 			],
 			"js": [
 				"sites/framadate.ts"
+			],
+			"css": [
+			],
+			"run_at": "document_end"
+		},
+		{
+			"matches": [
+				"*://timeful.app/e/*"
+			],
+			"js": [
+				"sites/timeful.ts"
 			],
 			"css": [
 			],

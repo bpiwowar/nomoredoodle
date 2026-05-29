@@ -138,6 +138,32 @@ export abstract class FormFiller {
 }
 
 /**
+ * Base class for schedulers that expose a programmatic API instead of a
+ * clickable form (e.g. Timeful's `postMessage` plugin API).
+ *
+ * Unlike {@link FormFiller}, there is no click-and-observe loop: the subclass
+ * discovers the candidate grid via {@link extractSlots} and pushes the whole
+ * chosen availability in a single batch via {@link fill}. It exposes the same
+ * surface the calendar overlay relies on (`extractSlots`, `fill`,
+ * `supportedStatuses`, `close`).
+ */
+export abstract class ApiFormFiller {
+	/// Statuses this scheduler can represent (used by the overlay for conversion).
+	supportedStatuses: Array<CalendarSlot['status']> = ['yes', 'if-need-be', 'no'];
+
+	/// Release any resources (listeners, timers). No-op by default.
+	close(): void {
+		// Nothing to release in the base class.
+	}
+
+	/// Build the list of candidate slots offered by the scheduler.
+	abstract extractSlots(): Promise<CalendarSlot[]>;
+
+	/// Push the chosen availability to the scheduler in one batch.
+	abstract fill(slots: CalendarSlot[]): Promise<void>;
+}
+
+/**
  * A form filler for forms where we can directly set values (e.g. radio buttons)
  * without needing to click-and-observe via MutationObserver.
  */
