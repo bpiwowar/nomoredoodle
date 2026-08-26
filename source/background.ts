@@ -50,7 +50,9 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			const isSupported = Boolean(tab?.url?.includes('doodle.com')
 				|| tab?.url?.includes('evento.renater.fr/survey')
 				|| tab?.url?.includes('framadate.org/polls')
-				|| tab?.url?.includes('timeful.app/e/'));
+				|| tab?.url?.includes('timeful.app/e/')
+				|| tab?.url?.includes('app.rallly.co/invite/')
+				|| tab?.url?.includes('app.rallly.co/poll/'));
 			sendResponse({supported: isSupported});
 			console.log(`Is supported: ${isSupported}`);
 		});
@@ -114,7 +116,9 @@ browserAPI.action.onClicked.addListener(async tab => {
 		const isSupported = Boolean(tab?.url?.includes('doodle.com')
 			|| tab?.url?.includes('evento.renater.fr/survey')
 			|| tab?.url?.includes('framadate.org/polls')
-			|| tab?.url?.includes('timeful.app/e/'));
+			|| tab?.url?.includes('timeful.app/e/')
+			|| tab?.url?.includes('app.rallly.co/invite/')
+			|| tab?.url?.includes('app.rallly.co/poll/'));
 
 		if (isSupported) {
 			// Trigger the overlay
@@ -142,7 +146,7 @@ browserAPI.action.onClicked.addListener(async tab => {
 			await browserAPI.notifications.create({
 				type: 'basic',
 				title: 'No More Doodle',
-				message: 'Navigate to a Doodle, Evento, Framadate, or Timeful page to use this extension.',
+				message: 'Navigate to a Doodle, Evento, Framadate, Timeful, or Rallly page to use this extension.',
 			iconUrl: 'icon.png',
 			});
 		}
