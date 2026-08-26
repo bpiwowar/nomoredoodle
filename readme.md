@@ -1,5 +1,28 @@
 # No More Doodle Firefox extension
 
+<!-- amo:start -->
+
+No More Doodle fills in scheduling polls for you, using the events already in your calendar.
+
+Open a poll, and the extension lays your calendar side by side with the poll's time slots: a calendar view on a shared time axis, and a list view spelling out exactly which events clash with each slot. Every slot gets a proposed answer, you adjust anything you disagree with, and one click fills the whole form.
+
+Supported scheduling sites:
+
+- [Doodle](https://doodle.com)
+- [Evento](https://evento.renater.fr)
+- [Framadate](https://framadate.org)
+- [Timeful](https://timeful.app)
+- [Rallly](https://app.rallly.co)
+
+You choose which calendars are consulted, and what each one means: a calendar can mark a slot as unavailable, as "if need be", or be ignored entirely. The most restrictive answer among the events overlapping a slot wins.
+
+Requires macOS. Calendar data is read locally through a small native bridge that talks to the macOS Calendar (EventKit) framework, and is installed separately - see the project homepage for setup instructions. Your calendar never leaves your machine: the extension makes no network requests with it.
+
+<!-- amo:end -->
+
+The text between the markers above is the source for the addons.mozilla.org
+listing description; `helpers/amo-update.py` reads it from here.
+
 Based on the [browser extension template](https://github.com/fregante/browser-extension-template).
 
 ## Usage
