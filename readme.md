@@ -57,6 +57,11 @@ Each calendar gets a status, which decides what its events do to a slot.
 
 ![The calendar selection tab, with calendars grouped by provider and a status legend](media/calendars-tab.png)
 
+## Roadmap
+
+- [Reading Thunderbird calendars](thunderbird.md) — design for using the calendars you keep in
+  Thunderbird from the browser, instead of shipping a Thunderbird build. Not implemented yet.
+
 ## Development
 
 ### 🛠 Build locally
