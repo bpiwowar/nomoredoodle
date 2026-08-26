@@ -1,13 +1,15 @@
 {
 	"private": true,
 	"scripts": {
-		"build": "NODE_NO_WARNINGS=1 parcel build",
+		"clean": "rm -rf distribution/*",
+		"build": "npm run clean && NODE_NO_WARNINGS=1 parcel build",
 		"build:tailwind-ts": "node helpers/generate-tailwind-ts.mjs",
-		"lint": "run-p lint:*",
-		"lint-fix": "run-p 'lint:* -- --fix'",
+		"lint": "run-p lint:css lint:js",
+		"lint-fix": "run-p 'lint:css -- --fix' 'lint:js -- --fix'",
 		"lint:css": "stylelint source/**/*.css",
 		"lint:js": "xo",
-		"test": "run-p lint:* build",
+		"lint:ext": "web-ext lint --source-dir distribution",
+		"test": "run-s lint build lint:ext",
 		"watch": "run-p watch:*",
 		"watch:parcel": "NODE_NO_WARNINGS=1 parcel watch --no-hmr",
 		"watch:tsc": "tsc --noEmit --watch",
@@ -94,6 +96,7 @@
 		"stylelint-config-xo": "^1.0.2",
 		"tailwindcss": "^4.1.13",
 		"typescript": "^5.9.2",
+		"web-ext": "^10.6.0",
 		"xo": "^1.2.2"
 	},
 	"@parcel/resolver-default": {

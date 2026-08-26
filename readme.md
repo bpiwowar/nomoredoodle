@@ -51,7 +51,23 @@ Native host registered for chromium at /Users/.../Library/Application Support/Ch
 2. Run `npm install` to install all required dependencies
 3. Run `npm run build`
 
-The build step will create the `distribution` folder, this folder will contain the generated extension.
+The build step will empty and recreate the `distribution` folder, this folder will contain the
+generated extension.
+
+### ✅ Check store compliance
+
+`npm test` lints the sources, builds, and then runs [`web-ext lint`](https://extensionworkshop.com/documentation/develop/web-ext-command-reference/#web-ext-lint)
+(the same [addons-linter](https://github.com/mozilla/addons-linter) that addons.mozilla.org runs on
+submission) over the built extension. Run it on its own with `npm run lint:ext` after a build.
+
+It should report **0 errors**. The remaining warnings are expected:
+
+- `BACKGROUND_SERVICE_WORKER_IGNORED` — the manifest deliberately declares both
+  `background.service_worker` (Chrome) and `background.scripts` (Firefox).
+- `KEY_FIREFOX_*_UNSUPPORTED_BY_MIN_VERSION` — `data_collection_permissions` is required for new
+  submissions but only understood from Firefox 140; older versions, which `strict_min_version` still
+  supports, ignore it.
+- `UNSAFE_VAR_ASSIGNMENT` ×2 — `innerHTML` inside the bundled `react-dom`, not in this extension's code.
 
 ### 🏃 Run the extension
 
@@ -59,8 +75,7 @@ The build step will create the `distribution` folder, this folder will contain t
 Using [web-ext](https://extensionworkshop.com/documentation/develop/getting-started-with-web-ext/) is recommended for automatic reloading.
 
 1. Run `npm run watch` to watch for file changes and build continuously
-1. Run `npm install --global web-ext` (only for the first time)
-1. In another terminal, run: `web-ext run -t firefox-desktop`
+1. In another terminal, run: `npx web-ext run -t firefox-desktop`
 
 **For Chrome/Chromium:**
 Due to native messaging limitations with temporary profiles, you need to load the extension manually:
