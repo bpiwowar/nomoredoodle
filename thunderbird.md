@@ -180,9 +180,17 @@ piece of this project into a macOS binary.
 | `fr.piwowarski.calendar.bridge` | Swift + EventKit | macOS system calendars | Xcode CLT to build |
 | `fr.piwowarski.thunderbird.bridge` | **Python 3, stdlib only** | Thunderbird profile | `python3`, no compile step |
 
-Python over Node here because `sqlite3`, `json` and `configparser` are all standard library, so
-there is no `npm install` and no version floor: Node's built-in `node:sqlite` was only added in
-v22.5.0 and is still a release candidate, while `.nvmrc` pins 18. Node's one advantage — same language as the extension — is moot, since the
+The rule being applied: **maintainer tooling may pull whatever dependencies it likes; anything a
+user has to run may not.** `helpers/amo-update.py` is a fine counter-example — it is a
+`uv run --script` with `pyjwt` and `requests` declared inline, which is right for something only a
+maintainer ever invokes. A native messaging host is the opposite: it runs on someone else's
+machine, started by their browser, and every runtime it needs is something that can be missing.
+
+That is what picks Python over Node here, not the language. `sqlite3`, `json` and `configparser`
+are standard library, so the host needs no packages at all, and `python3` is present by default on
+macOS and Linux. Node would need ≥22.5 for the built-in `node:sqlite` — which is still only a
+release candidate — and while `.nvmrc` now pins 22 for *building* the extension, that says nothing
+about what an end user has installed. Node's one advantage — same language as the extension — is moot, since the
 recurrence expansion lives in the extension either way.
 
 The side effect is the valuable one: **the Thunderbird source needs no compiler at all.** Today the
