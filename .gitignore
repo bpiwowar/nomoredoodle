@@ -2,3 +2,6 @@ node_modules
 distribution
 .parcel-cache
 .web-ext-config.cjs
+.DS_Store
+web-ext-artifacts
+CLAUDE.md
