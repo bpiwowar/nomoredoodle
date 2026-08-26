@@ -5,3 +5,6 @@ distribution
 .DS_Store
 web-ext-artifacts
 CLAUDE.md
+
+# extension signing keys must never be committed
+*.pem

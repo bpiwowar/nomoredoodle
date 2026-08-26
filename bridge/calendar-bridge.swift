@@ -163,9 +163,12 @@ enum Browser {
             // Firefox uses just the extension ID
             return ["no-more-doodle@piwowarski.fr"]
         case .chrome, .chromium:
-            // Chrome uses chrome-extension://ID/ format
-            // This ID is generated from the "key" field in manifest.json
-            let id = chromeExtensionId ?? "eodldnljbjjdpncgefjdnanlkkflempf"
+            // Chrome uses chrome-extension://ID/ format.
+            // Derived from the "key" field in manifest.json: SHA-256 of the DER
+            // public key, first 128 bits, hex digits mapped 0-f to a-p. Pass
+            // --chrome-id to override it, which the Web Store build needs since
+            // the store assigns its own id.
+            let id = chromeExtensionId ?? "aiahhmaoljmnhhalhkdcioidlpkhbeof"
             return ["chrome-extension://\(id)/"]
         }
     }

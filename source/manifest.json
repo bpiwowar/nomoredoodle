@@ -6,7 +6,7 @@
 	"homepage_url": "https://github.com/bpiwowar/nomoredoodle",
 	"manifest_version": 3,
 	"minimum_chrome_version": "121",
-	"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYq4fP0qJ0YqLVqWxYqK5qLqGvL0qN8ZF8xYxYqwIDAQAB",
+	"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5cxgulLJ+yZA7fUki+5df7LLAJIK/ALfJT6Wc6fH71rf5ehS8c2lFQ32y4uYbfEPIq0ce6EUX0VkckB5htpXbtX8fFKSFDlgjiGt9WIRA51fCCPTfwnSqrtfj1G/KlyFOkBf8HBU3Yag6CB8J8QAJf/YeKVG+9M+Z53naTyi+qpMxl7actaC9mcIm3rZaOjoGJHXG3a4TvoENUpekj3NdahT5ZKvzDcMcIfFSVwAr4/QAeMQ2Im6hHib8qJAVy31VGbPwsZ3fqp3xvhe4OXVCwOfZOruAgMfJN7nqrfDsd2Bi0DVCqUrW6iVjW+kRw6fm/B2GBxHE/d2qhGVuoXUUwIDAQAB",
 	"browser_specific_settings": {
 		"gecko": {
 			"id": "no-more-doodle@piwowarski.fr",
