@@ -2,11 +2,11 @@
 	"private": true,
 	"scripts": {
 		"clean": "rm -rf distribution/*",
-		"build": "run-s clean build:manifests build:chrome build:firefox",
+		"build": "run-s clean build:tailwind-ts build:manifests build:chrome build:firefox",
+		"build:tailwind-ts": "node helpers/generate-tailwind-ts.mjs",
 		"build:manifests": "node helpers/generate-manifests.mjs",
 		"build:chrome": "NODE_NO_WARNINGS=1 parcel build --target chrome --cache-dir .parcel-cache/chrome",
 		"build:firefox": "NODE_NO_WARNINGS=1 parcel build --target firefox --cache-dir .parcel-cache/firefox",
-		"build:tailwind-ts": "node helpers/generate-tailwind-ts.mjs",
 		"lint": "run-p lint:css lint:js",
 		"lint-fix": "run-p 'lint:css -- --fix' 'lint:js -- --fix'",
 		"lint:css": "stylelint source/**/*.css",

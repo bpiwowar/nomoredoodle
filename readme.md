@@ -43,6 +43,20 @@ Native host registered for chromium at /Users/.../Library/Application Support/Ch
 
 **Note for Chrome users:** After installing the extension in Chrome, you may need to update the bridge's manifest file to include your extension's ID. The extension ID can be found on `chrome://extensions/` when you load the extension.
 
+## Screenshots
+
+The overlay opens on the poll page, lining your calendar up against the poll's options.
+
+![The calendar view: each day shows calendar events on the left and poll slots as dashed colour bars on the right, on a shared time axis](media/calendar.png)
+
+The same slots as a list, with the events that clash with each one spelled out.
+
+![The list view, showing each slot with its computed status and its intersecting events](media/list.png)
+
+Each calendar gets a status, which decides what its events do to a slot.
+
+![The calendar selection tab, with calendars grouped by provider and a status legend](media/calendars-tab.png)
+
 ## Development
 
 ### 🛠 Build locally

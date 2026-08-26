@@ -20,7 +20,7 @@ const tailwindGenerated = execSync('npx tailwindcss -i - --minify', {
 });
 
 // Generate the TypeScript file
-const tsContent = `export const tailwindCSS = \`${tailwindGenerated}\`;`;
+const tsContent = `export const tailwindCSS = \`${tailwindGenerated}\`;\n`;
 fs.writeFileSync(tsOutput, tsContent, 'utf8');
 
 console.log(`✅ Generated TypeScript file at ${tsOutput}`);
