@@ -60,6 +60,31 @@ function formatDate(timestamp: Date): string {
 	});
 }
 
+/** The native bridge failing is a setup problem, so its fix goes on screen with it. */
+function CalendarsError({message, hint}: {message: string; hint?: string}) {
+	return (
+		<div className='p-4 bg-red-100 border border-red-400 text-red-700 rounded'>
+			<strong>Error:</strong> {message}
+			{hint && (
+				<pre style={{
+					marginTop: '10px',
+					padding: '10px',
+					backgroundColor: '#fff',
+					border: '1px solid #fca5a5',
+					borderRadius: '4px',
+					fontSize: '11px',
+					lineHeight: '1.45',
+					whiteSpace: 'pre-wrap',
+					overflowWrap: 'anywhere',
+					color: '#7f1d1d',
+				}}>
+					{hint}
+				</pre>
+			)}
+		</div>
+	);
+}
+
 function SlotsList({
 	slots, originalSlots, calendarStatuses, getIntersectingEvents, onSlotStatusChange, onResetSlot,
 }: {
@@ -297,6 +322,7 @@ function TimeSlotManager({
 	const [calendars, setCalendars] = React.useState<CalendarsGrouped>({});
 	const [calendarsLoading, setCalendarsLoading] = React.useState<boolean>(true);
 	const [calendarsError, setCalendarsError] = React.useState<string | undefined>(undefined);
+	const [calendarsHint, setCalendarsHint] = React.useState<string | undefined>(undefined);
 	const [calendarStatuses, setCalendarStatuses] = React.useState<Record<string, OptionsCalendarStatus>>({});
 	const [statusMapping, setStatusMapping] = React.useState<{
 		'could-be': CalendarSlot['status'];
@@ -327,11 +353,13 @@ function TimeSlotManager({
 				console.log('Loading calendars...');
 				setCalendarsLoading(true);
 				setCalendarsError(undefined);
+				setCalendarsHint(undefined);
 
 				// Request calendars from background script
-				const response = await (browserAPI.runtime.sendMessage as (message: any) => Promise<any>)({type: 'getCalendars'}) as {error?: string; calendars?: CalendarsGrouped};
+				const response = await (browserAPI.runtime.sendMessage as (message: any) => Promise<any>)({type: 'getCalendars'}) as {error?: string; hint?: string; calendars?: CalendarsGrouped};
 
 				if (response.error) {
+					setCalendarsHint(response.hint);
 					throw new Error(response.error);
 				}
 
@@ -853,9 +881,7 @@ e.currentTarget.style.backgroundColor = '#3b82f6';
 						)
 : calendarsError
 ? (
-							<div className='p-4 bg-red-100 border border-red-400 text-red-700 rounded'>
-								<strong>Error:</strong> {calendarsError}
-							</div>
+							<CalendarsError message={calendarsError} hint={calendarsHint}/>
 						)
 : Object.keys(calendars).length === 0
 ? (

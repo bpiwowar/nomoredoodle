@@ -31,51 +31,119 @@ type EventItem = {
 	availability?: string;
 };
 
-// Helper to connect to native host
-export async function getCalendars(hostName: string = bridgeId): Promise<CalendarsGrouped> {
-	return new Promise((resolve, reject) => {
-		let resolved = false;
+export class NativeBridgeError extends Error {
+	constructor(message: string, readonly hint?: string) {
+		super(message);
+		this.name = 'NativeBridgeError';
+	}
+}
 
-		const port = browserAPI.runtime.connectNative(hostName);
+/**
+ * A host that is missing or not allowed for this extension never sends a
+ * message: the only description of what went wrong is on the disconnect, and
+ * Chrome and Firefox word it differently. The extension id is the useful part —
+ * the host manifest allowlists exactly one, and an unpacked extension gets a new
+ * one whenever the manifest "key" changes.
+ */
+function bridgeError(detail = ''): NativeBridgeError {
+	const forbidden = /forbidden|does not have permission/i.test(detail);
+	const missing = /not found|no such native application/i.test(detail);
 
-		// Optional timeout: reject only if nothing arrives in 5 seconds
-		const timeout = setTimeout(() => {
-			if (!resolved) {
-				reject(new Error('Native bridge timed out'));
+	if (!forbidden && !missing) {
+		return new NativeBridgeError(detail || 'The native calendar bridge disconnected before answering.');
+	}
+
+	const id = browserAPI.runtime.id;
+	return new NativeBridgeError(
+		forbidden
+			? 'The native calendar bridge is installed, but not for this extension.'
+			: 'The native calendar bridge is not installed.',
+		[
+			forbidden
+				? `Its host manifest allows a different extension id than this one (${id}).`
+				: `No native messaging host named "${bridgeId}" is registered for this browser.`,
+			'',
+			'Build and register it, then reload the extension:',
+			'',
+			'  cd <your nomoredoodle checkout>/bridge',
+			'  swiftc -framework EventKit calendar-bridge.swift -o calendar-bridge',
+			`  ./calendar-bridge --register --chrome-id ${id}`,
+		].join('\n'),
+	);
+}
+
+/**
+ * One request/response round trip over the native messaging port.
+ * `read` returns undefined for messages that are not the answer we are after.
+ */
+async function askBridge<T>(
+	request: Record<string, unknown>,
+	read: (message: any) => T | undefined,
+	hostName: string = bridgeId,
+): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		let port: ReturnType<typeof browserAPI.runtime.connectNative>;
+		try {
+			port = browserAPI.runtime.connectNative(hostName);
+		} catch (error) {
+			reject(bridgeError((error as Error)?.message));
+			return;
+		}
+
+		let settled = false;
+		const settle = (answer: () => void) => {
+			if (settled) {
+				return;
 			}
+
+			settled = true;
+			clearTimeout(timeout);
+			answer();
+			// Disconnect slightly after settling
+			setTimeout(() => {
+				port.disconnect();
+			}, 0);
+		};
+
+		const timeout = setTimeout(() => {
+			settle(() => {
+				reject(new NativeBridgeError('The native calendar bridge timed out.'));
+			});
 		}, 5000);
 
 		port.onMessage.addListener((message: any) => {
-			if (message.calendars) {
-				resolved = true;
-				clearTimeout(timeout);
-				resolve(message.calendars as CalendarsGrouped);
-				// Disconnect slightly after resolving
-				setTimeout(() => {
-					port.disconnect();
-				}, 0);
-			} else if (message.error) {
-				resolved = true;
-				clearTimeout(timeout);
-				reject(new Error((message as Error)?.message ?? 'Unknown error'));
-				setTimeout(() => {
-					port.disconnect();
-				}, 0);
+			const answer = read(message);
+			if (answer === undefined) {
+				if (message?.error) {
+					settle(() => {
+						reject(new NativeBridgeError(String(message.error)));
+					});
+				}
+
+				return;
 			}
+
+			settle(() => {
+				resolve(answer);
+			});
 		});
 
 		port.onDisconnect.addListener(() => {
-			// Only reject if we haven't resolved AND timeout hasn't fired
-			if (!resolved) {
-				const errorMessage
-						= browserAPI.runtime.lastError?.message ?? 'Native bridge disconnected before sending a response (but may still succeed)';
-				console.warn(errorMessage); // Just log
-			}
+			settle(() => {
+				reject(bridgeError(browserAPI.runtime.lastError?.message));
+			});
 		});
 
-		// Send request
-		port.postMessage({action: 'listCalendars'});
+		port.postMessage(request);
 	});
+}
+
+export async function getCalendars(hostName: string = bridgeId): Promise<CalendarsGrouped> {
+	return askBridge<CalendarsGrouped>(
+		{action: 'listCalendars'},
+		message => message.calendars as CalendarsGrouped | undefined,
+		hostName,
+	);
 }
 
 /**
@@ -87,68 +155,36 @@ export async function getCalendars(hostName: string = bridgeId): Promise<Calenda
  * @returns A list of events
  */
 export async function getEvents(start: Date, end: Date, calendarIds: string[]): Promise<CalendarEvent[]> {
-	return new Promise((resolve, reject) => {
-		const port = browserAPI.runtime.connectNative(bridgeId);
-		let resolved = false;
-
-		const timeout = setTimeout(() => {
-			if (!resolved) {
-				reject(new Error('Native bridge timed out'));
-			}
-		}, 5000);
-
-		port.onMessage.addListener(message => {
-			if (message.events) {
-				resolved = true;
-				clearTimeout(timeout);
-				const items = message.events as EventItem[];
-				const events: CalendarEvent[] = items.map(event => {
-					// Map iCal availability to status
-					let status: CalendarSlot['status'] = 'no';
-					if (event.availability === 'free') {
-						status = 'yes';
-					} else if (event.availability === 'tentative') {
-						status = 'if-need-be';
-					} else {
-						// 'busy', 'unavailable', or missing => 'no'
-						status = 'no';
-					}
-
-					return {
-						startDate: new Date(event.startDate * 1000),
-						endDate: new Date(event.endDate * 1000),
-						status,
-						title: event.title,
-						id: event.id,
-						calendarId: event.calendarID,
-					};
-				});
-				console.log('Returning', events);
-				resolve(events);
-				setTimeout(() => {
-					port.disconnect();
-				}, 0);
-			} else if (message.error) {
-				resolved = true;
-				clearTimeout(timeout);
-				reject(new Error(message.error as string));
-				setTimeout(() => {
-					port.disconnect();
-				}, 0);
-			}
-		});
-
-		port.onDisconnect.addListener(() => {
-			if (!resolved) {
-				console.warn('Native bridge disconnected before sending a response');
-			}
-		});
-
-		port.postMessage({
+	return askBridge<CalendarEvent[]>(
+		{
 			action: 'getEvents',
 			start: start.getTime() / 1000, // Seconds since epoch
 			end: end.getTime() / 1000,
 			calendarIds,
-		});
-	});
+		},
+		message => {
+			const items = message.events as EventItem[] | undefined;
+			return items?.map(event => {
+				// Map iCal availability to status
+				let status: CalendarSlot['status'] = 'no';
+				if (event.availability === 'free') {
+					status = 'yes';
+				} else if (event.availability === 'tentative') {
+					status = 'if-need-be';
+				} else {
+					// 'busy', 'unavailable', or missing => 'no'
+					status = 'no';
+				}
+
+				return {
+					startDate: new Date(event.startDate * 1000),
+					endDate: new Date(event.endDate * 1000),
+					status,
+					title: event.title,
+					id: event.id,
+					calendarId: event.calendarID,
+				};
+			});
+		},
+	);
 }

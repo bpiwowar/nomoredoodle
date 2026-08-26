@@ -332,20 +332,21 @@ function isVotingFormOpen(): boolean {
 	return document.querySelector(voteSelectorQuery) !== null;
 }
 
+/** Thrown reasons travel back to the background worker, which notifies the user. */
+class NoSlotsError extends Error {}
+
 async function getSlots(): Promise<CalendarSlot[] | undefined> {
 	if (slots) {
 		return slots;
 	}
 
 	if (!isVotingFormOpen()) {
-		console.error('Rallly: no voting form on this page');
-		return undefined;
+		throw new NoSlotsError('No voting form on this Rallly page. Click "Vote" to open it, then try again.');
 	}
 
 	const poll = await fetchPoll();
 	if (!poll?.options?.length) {
-		console.error('Rallly: no poll options found');
-		return undefined;
+		throw new NoSlotsError('This Rallly poll has no options to fill.');
 	}
 
 	slots = buildSlots(poll);
@@ -358,9 +359,17 @@ browserAPI.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 	if (message.type === 'get-range') {
 		console.log('Getting Rallly slots...');
 		(async () => {
-			const slots = await getSlots();
+			let slots;
+			try {
+				slots = await getSlots();
+			} catch (error) {
+				console.error(error);
+				sendResponse({error: (error as Error).message});
+				return;
+			}
+
 			if (!slots || slots.length === 0) {
-				sendResponse(undefined);
+				sendResponse({error: 'This Rallly poll has no options to fill.'});
 				return;
 			}
 

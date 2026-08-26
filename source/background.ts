@@ -1,5 +1,5 @@
 import './options-storage.js';
-import {getEvents, getCalendars} from './native-calendar.js';
+import {getEvents, getCalendars, NativeBridgeError} from './native-calendar.js';
 import {
 CalendarStatus, type CalendarSlot, type TimeRange, type OptionsCalendarStatus, type SelectedCalendars,
 } from './events.js';
@@ -7,11 +7,43 @@ import {browserAPI} from './browser-compat.js';
 
 type TabMessage = {type: 'get-range'} | {type: 'runFill'; payload: CalendarSlot[]};
 
+/**
+ * Parcel content-hashes the icons, so a hard-coded "icon-128.png" never resolves
+ * and Chrome then refuses to create the notification at all — which is why
+ * failures used to reach the console and nowhere else. The built manifest is the
+ * only place that knows the real file name.
+ */
+const notificationIcon = browserAPI.runtime.getManifest().icons?.['128'] ?? '';
+
+/** Console warnings are invisible to users, so every failure gets a notification. */
+async function notifyError(title: string, error: unknown) {
+	console.warn(title, error);
+	const hint = error instanceof NativeBridgeError ? error.hint : undefined;
+	const message = (error as Error)?.message ?? 'Unknown error';
+	await browserAPI.notifications.create({
+		type: 'basic',
+		title,
+		message: hint ? `${message}\n\n${hint}` : message,
+		iconUrl: notificationIcon,
+	});
+}
+
 async function fillSlots(tab_id: number) {
 	console.log('Filling on', tab_id);
-	const response = await browserAPI.tabs.sendMessage<TabMessage, TimeRange>(tab_id, {
+	const response = await browserAPI.tabs.sendMessage<TabMessage, TimeRange | {error: string} | undefined>(tab_id, {
 		type: 'get-range',
 	});
+
+	// A content script that finds nothing answers with a reason, or with nothing
+	// at all. Either way the user needs to be told rather than hitting a
+	// "cannot read properties of undefined" further down.
+	if (response && 'error' in response) {
+		throw new Error(response.error);
+	}
+
+	if (!response?.startDate || !response?.endDate) {
+		throw new Error('No poll options found on this page. If the poll needs a "Vote" button to open its form, open it first, then try again.');
+	}
 
 	// Convert serialized dates back to Date objects
 	const startDate = new Date(response.startDate);
@@ -67,7 +99,10 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 				sendResponse({calendars});
 			} catch (error) {
 				console.error('Error getting calendars:', error);
-				sendResponse({error: (error as Error)?.message ?? 'Failed to get calendars'});
+				sendResponse({
+					error: (error as Error)?.message ?? 'Failed to get calendars',
+					hint: error instanceof NativeBridgeError ? error.hint : undefined,
+				});
 			}
 		})();
 
@@ -85,17 +120,11 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 						type: 'basic',
 						title: 'Meeting schedule filled',
 						message: 'All good',
-					iconUrl: 'icon.png',
+					iconUrl: notificationIcon,
 					});
 					sendResponse({success: true});
 				} catch (error) {
-					console.warn('Error when filling', error);
-					await browserAPI.notifications.create({
-						type: 'basic',
-						title: 'Error',
-						message: `Got errors when filling: ${(error as Error)?.message}`,
-					iconUrl: 'icon.png',
-					});
+					await notifyError('Could not fill the poll', error);
 					sendResponse({success: false, error: (error as Error)?.message});
 				}
 			} else {
@@ -129,17 +158,11 @@ browserAPI.action.onClicked.addListener(async tab => {
 						type: 'basic',
 						title: 'Meeting schedule filled',
 						message: 'All good',
-				iconUrl: 'icon.png',
+				iconUrl: notificationIcon,
 					});
 				})
 				.catch(async (error: unknown) => {
-					console.warn('Error when filling', error);
-					await browserAPI.notifications.create({
-						type: 'basic',
-						title: 'Error',
-						message: `Got errors when filling: ${(error as Error)?.message}`,
-					iconUrl: 'icon.png',
-					});
+					await notifyError('Could not fill the poll', error);
 				});
 		} else {
 			// Show notification that page is not supported
@@ -147,7 +170,7 @@ browserAPI.action.onClicked.addListener(async tab => {
 				type: 'basic',
 				title: 'No More Doodle',
 				message: 'Navigate to a Doodle, Evento, Framadate, Timeful, or Rallly page to use this extension.',
-			iconUrl: 'icon.png',
+			iconUrl: notificationIcon,
 			});
 		}
 	}
