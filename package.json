@@ -2,16 +2,20 @@
 	"private": true,
 	"scripts": {
 		"clean": "rm -rf distribution/*",
-		"build": "npm run clean && NODE_NO_WARNINGS=1 parcel build",
+		"build": "run-s clean build:manifests build:chrome build:firefox",
+		"build:manifests": "node helpers/generate-manifests.mjs",
+		"build:chrome": "NODE_NO_WARNINGS=1 parcel build --target chrome --cache-dir .parcel-cache/chrome",
+		"build:firefox": "NODE_NO_WARNINGS=1 parcel build --target firefox --cache-dir .parcel-cache/firefox",
 		"build:tailwind-ts": "node helpers/generate-tailwind-ts.mjs",
 		"lint": "run-p lint:css lint:js",
 		"lint-fix": "run-p 'lint:css -- --fix' 'lint:js -- --fix'",
 		"lint:css": "stylelint source/**/*.css",
 		"lint:js": "xo",
-		"lint:ext": "web-ext lint --source-dir distribution",
+		"lint:ext": "web-ext lint --source-dir distribution/firefox",
 		"test": "run-s lint build lint:ext",
-		"watch": "run-p watch:*",
-		"watch:parcel": "NODE_NO_WARNINGS=1 parcel watch --no-hmr",
+		"watch": "npm run build:manifests && run-p watch:chrome watch:firefox watch:tsc",
+		"watch:chrome": "NODE_NO_WARNINGS=1 parcel watch --target chrome --cache-dir .parcel-cache/chrome --no-hmr",
+		"watch:firefox": "NODE_NO_WARNINGS=1 parcel watch --target firefox --cache-dir .parcel-cache/firefox --no-hmr",
 		"watch:tsc": "tsc --noEmit --watch",
 		"prepare": "husky"
 	},
@@ -103,13 +107,17 @@
 		"packageExports": true
 	},
 	"targets": {
-		"default": {
-			"source": "source/manifest.json",
-			"distDir": "./distribution"
+		"chrome": {
+			"source": "source/chrome/manifest.json",
+			"distDir": "./distribution/chrome"
+		},
+		"firefox": {
+			"source": "source/firefox/manifest.json",
+			"distDir": "./distribution/firefox"
 		}
 	},
 	"webExt": {
-		"sourceDir": "distribution",
+		"sourceDir": "distribution/firefox",
 		"run": {
 			"startUrl": [
 				"https://github.com/fregante/browser-extension-template"

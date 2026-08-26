@@ -51,23 +51,38 @@ Native host registered for chromium at /Users/.../Library/Application Support/Ch
 2. Run `npm install` to install all required dependencies
 3. Run `npm run build`
 
-The build step will empty and recreate the `distribution` folder, this folder will contain the
-generated extension.
+The build step empties `distribution/` and writes one self-contained package per browser:
+
+    distribution/chrome/     load this one in Chrome/Chromium
+    distribution/firefox/    load this one in Firefox
+
+Each gets its own `manifest.json`, generated from the shared `source/manifest.json` by
+`helpers/generate-manifests.mjs`. One manifest cannot serve both stores: Chrome rejects
+`background.scripts` ("requires manifest version of 2 or lower") while Firefox has no service
+worker background and needs exactly that key. The generator starts from the shared manifest and
+drops what each browser does not understand.
+
+**To add a browser**, add an entry to the `targets` table in that script and a matching Parcel
+target in `package.json`. Note that the two targets are built by *separate* Parcel invocations
+(`build:chrome`, `build:firefox`): in a single run Parcel deduplicates the assets both share into
+one `distDir` and cross-references them, which leaves the other package pointing at
+`../<browser>/` and unloadable.
 
 ### ✅ Check store compliance
 
 `npm test` lints the sources, builds, and then runs [`web-ext lint`](https://extensionworkshop.com/documentation/develop/web-ext-command-reference/#web-ext-lint)
 (the same [addons-linter](https://github.com/mozilla/addons-linter) that addons.mozilla.org runs on
-submission) over the built extension. Run it on its own with `npm run lint:ext` after a build.
+submission) over `distribution/firefox`. Run it on its own with `npm run lint:ext` after a build.
 
 It should report **0 errors**. The remaining warnings are expected:
 
-- `BACKGROUND_SERVICE_WORKER_IGNORED` — the manifest deliberately declares both
-  `background.service_worker` (Chrome) and `background.scripts` (Firefox).
-- `KEY_FIREFOX_*_UNSUPPORTED_BY_MIN_VERSION` — `data_collection_permissions` is required for new
+- `KEY_FIREFOX_*_UNSUPPORTED_BY_MIN_VERSION` ×2 — `data_collection_permissions` is required for new
   submissions but only understood from Firefox 140; older versions, which `strict_min_version` still
   supports, ignore it.
 - `UNSAFE_VAR_ASSIGNMENT` ×2 — `innerHTML` inside the bundled `react-dom`, not in this extension's code.
+
+Chrome has no equivalent command-line checker, but loading `distribution/chrome` unpacked at
+`chrome://extensions/` surfaces any manifest complaint at the top of the extension's card.
 
 ### 🏃 Run the extension
 
@@ -85,7 +100,7 @@ Due to native messaging limitations with temporary profiles, you need to load th
 1. Go to `chrome://extensions/`
 1. Enable "Developer mode" (toggle in top-right)
 1. Click "Load unpacked"
-1. Select the `distribution` folder
+1. Select the `distribution/chrome` folder
 1. The extension will auto-reload when you make changes (just refresh if needed)
 
 **Note:** Make sure you've registered the native bridge for your target browser (see Usage section above).

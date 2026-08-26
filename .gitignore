@@ -8,3 +8,7 @@ CLAUDE.md
 
 # extension signing keys must never be committed
 *.pem
+
+# per-browser manifests, generated from source/manifest.json
+source/chrome/
+source/firefox/

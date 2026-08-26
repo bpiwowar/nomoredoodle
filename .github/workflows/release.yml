@@ -1,9 +1,9 @@
 env:
-  DIRECTORY: distribution
   PROJECT_NAME: extension
 
 # FILE GENERATED WITH: npx ghat fregante/ghatemplates/webext
 # SOURCE: https://github.com/fregante/ghatemplates
+# Since diverged: the build emits one package per browser under distribution/.
 
 name: Release
 on:
@@ -26,23 +26,32 @@ jobs:
         run: npm test
       - name: Create tag if necessary
         uses: fregante/daily-version-action@v2
-      - name: Update manifest.json with version ${{ env.DAILY_VERSION}}
+      - name: Update each manifest.json with version ${{ env.DAILY_VERSION}}
         if: env.DAILY_VERSION_CREATED
-        run: npx dot-json@1 "$DIRECTORY/manifest.json" version "$DAILY_VERSION"
+        run: |
+          for manifest in distribution/*/manifest.json; do
+            npx dot-json@1 "$manifest" version "$DAILY_VERSION"
+          done
       - name: Ready for "submit" jobs
         if: env.DAILY_VERSION_CREATED
         uses: actions/upload-artifact@v4
         with:
-          path: ${{ env.DIRECTORY }}
+          name: distribution
+          path: distribution
       - name: Create release
         if: env.DAILY_VERSION_CREATED
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        working-directory: ${{ env.DIRECTORY }}
         run: |
-          FILENAME="$PROJECT_NAME-$DAILY_VERSION-for-local-testing-only.zip"
-          zip -r "$FILENAME" ./*
-          gh release create "$DAILY_VERSION" --generate-notes "$FILENAME"
+          root="$PWD"
+          assets=()
+          for browser in distribution/*/; do
+            name=$(basename "$browser")
+            filename="$PROJECT_NAME-$name-$DAILY_VERSION-for-local-testing-only.zip"
+            (cd "$browser" && zip -r "$root/$filename" ./*)
+            assets+=("$filename")
+          done
+          gh release create "$DAILY_VERSION" --generate-notes "${assets[@]}"
   # Chrome:
   #   if: needs.Version.outputs.created
   #   needs: Version
@@ -51,8 +60,10 @@ jobs:
   #   runs-on: ubuntu-latest
   #   steps:
   #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: distribution
   #     - run: npx chrome-webstore-upload-cli@3 upload --auto-publish
-  #       working-directory: artifact
+  #       working-directory: chrome
   #       env:
   #         EXTENSION_ID: ${{ secrets.EXTENSION_ID }}
   #         CLIENT_ID: ${{ secrets.CLIENT_ID }}
@@ -66,8 +77,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
+        with:
+          name: distribution
       - run: npx web-ext@7 sign --use-submission-api --channel listed
-        working-directory: artifact
+        working-directory: firefox
         env:
           WEB_EXT_API_KEY: ${{ secrets.WEB_EXT_API_KEY }}
           WEB_EXT_API_SECRET: ${{ secrets.WEB_EXT_API_SECRET }}
