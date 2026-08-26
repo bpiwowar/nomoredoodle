@@ -26,10 +26,11 @@ Run it from the repository root, so the screenshot paths resolve:
     ./helpers/amo-update.py --show           # print the current listing state
     ./helpers/amo-update.py --apply --replace-screenshots  # redo the screenshots
 
-Safe to re-run: metadata that already matches is skipped, and screenshots are
-only uploaded when the listing has none (unless --replace-screenshots), so a
-retry after a failure will not create duplicates. AMO throttles writes hard -
-429s are waited out automatically, so uploading screenshots can take minutes.
+Safe to re-run, and it resumes: metadata that already matches is skipped, and
+only the screenshots the listing does not have yet (matched by caption) are
+uploaded, so a retry after a failure finishes the job instead of duplicating
+it. AMO throttles writes hard - 429s are waited out automatically, so a full
+screenshot upload can take minutes.
 
 API keys: https://addons.mozilla.org/en-US/developers/addon/api/key/
 """
@@ -175,17 +176,49 @@ def show():
     print("description    :", (addon.get("description") or {}).get(LANG))
 
 
+def set_caption(preview_id, caption):
+    """A caption cannot be set when a preview is created: it is a localized
+    object, which multipart form-data cannot express. So it takes a PATCH."""
+    resp = send("PATCH", f"{BASE}/previews/{preview_id}/",
+                json={"caption": {LANG: caption}})
+    print(f"  caption {preview_id}:", resp.status_code)
+    if not resp.ok:
+        print("  ", resp.text)
+
+
 def upload_screenshots(screenshots, replace, previews):
-    if previews and not replace:
-        print(f"Screenshots: listing already has {len(previews)}, leaving them alone "
-              "(use --replace-screenshots to redo them).")
+    """Bring the listing's previews in line with the readme's screenshots.
+
+    Throttling makes a half-finished upload the normal failure, so this resumes
+    rather than starting over: previews are matched to screenshots by position
+    (AMO returns them in the order they were uploaded, which is readme order),
+    missing ones are uploaded and wrong or absent captions are repaired. If the
+    listing's previews are not the readme's, --replace-screenshots redoes them."""
+    if replace:
+        for preview in previews:
+            resp = send("DELETE", f"{BASE}/previews/{preview['id']}/")
+            print(f"DELETE preview {preview['id']}:", resp.status_code)
+        previews = []
+
+    for preview, (_, caption) in zip(previews, screenshots):
+        if (preview.get("caption") or {}).get(LANG) != caption:
+            print(f"Preview {preview['id']}: caption missing or stale, fixing.")
+            set_caption(preview["id"], caption)
+
+    if len(previews) > len(screenshots):
+        extra = [p["id"] for p in previews[len(screenshots):]]
+        print(f"Note: the listing has {len(extra)} preview(s) the readme does not "
+              f"describe: {extra}. Left alone; --replace-screenshots removes them.")
+
+    todo = screenshots[len(previews):]
+    if not todo:
+        print(f"Screenshots: all {len(screenshots)} already uploaded.")
         return
+    if previews:
+        print(f"Screenshots: {len(previews)} already uploaded, "
+              f"adding the {len(todo)} missing.")
 
-    for preview in previews:
-        resp = send("DELETE", f"{BASE}/previews/{preview['id']}/")
-        print(f"DELETE preview {preview['id']}:", resp.status_code)
-
-    for position, (path, caption) in enumerate(screenshots):
+    for position, (path, caption) in enumerate(todo, start=len(previews)):
         with open(path, "rb") as handle:
             resp = send(
                 "POST",
@@ -198,17 +231,7 @@ def upload_screenshots(screenshots, replace, previews):
             print("  ", resp.text)
             continue
 
-        # The caption cannot be set at creation: it is a localized object, which
-        # multipart form-data cannot express. Set it with a follow-up PATCH.
-        preview_id = resp.json()["id"]
-        resp = send(
-            "PATCH",
-            f"{BASE}/previews/{preview_id}/",
-            json={"caption": {LANG: caption}},
-        )
-        print(f"  caption {preview_id}:", resp.status_code)
-        if not resp.ok:
-            print("  ", resp.text)
+        set_caption(resp.json()["id"], caption)
 
 
 def main():
@@ -251,11 +274,22 @@ def main():
         print("DRY RUN - nothing sent. Would apply to", SLUG)
         print(f"  is_experimental -> False{note}")
         print(f"  description     -> {len(description)} chars from {README}{note}")
-        if previews and not args.replace_screenshots:
-            print(f"  screenshots     -> {len(previews)} already uploaded, skipping")
+        if args.replace_screenshots:
+            todo = screenshots
+            if previews:
+                print(f"  screenshots     -> delete {len(previews)}, re-upload "
+                      f"{len(screenshots)}")
         else:
-            for path, caption in screenshots:
-                print(f"  upload {path} ({caption[:48]}...)")
+            todo = screenshots[len(previews):]
+            stale = [preview["id"] for preview, (_, caption)
+                     in zip(previews, screenshots)
+                     if (preview.get("caption") or {}).get(LANG) != caption]
+            if stale:
+                print(f"  captions        -> fix {stale}")
+            if not todo:
+                print(f"  screenshots     -> all {len(screenshots)} already uploaded")
+        for path, caption in todo:
+            print(f"  upload {path} ({caption[:48]}...)")
         print("\nRe-run with --apply to send.")
         return
 
