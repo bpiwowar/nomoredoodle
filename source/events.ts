@@ -26,6 +26,15 @@ export type CalendarEvent = {
 	calendarDefaultStatus?: CalendarStatus; // Status from calendar selection
 } & TimeRange;
 
+export function formatTime(date: Date): string {
+	return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Recurring events arrive as separate occurrences; this is what ties a series together. */
+export function eventGroupKey(event: CalendarEvent): string {
+	return `${event.title}\0${event.calendarId}`;
+}
+
 export const statusOrder = {
 	yes: 0,
 	'could-be': 1,

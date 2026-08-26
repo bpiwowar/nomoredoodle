@@ -2,8 +2,9 @@ import React, {type CSSProperties, useMemo, useEffect} from 'react';
 import {createRoot, type Root} from 'react-dom/client';
 import {tailwindCSS} from './tailwind-css.js';
 import {
-	type CalendarSlot, type CalendarEvent, type CalendarStatus, calculateSlotStatus, doRangesIntersect, type OptionsCalendarStatus, type SelectedCalendars,
+	type CalendarSlot, type CalendarEvent, type CalendarStatus, calculateSlotStatus, doRangesIntersect, type OptionsCalendarStatus, type SelectedCalendars, formatTime, eventGroupKey,
 } from './events.js';
+import {CalendarSlotsView, statusPalette, offPalette} from './calendar-view.js';
 import {browserAPI} from './browser-compat.js';
 
 type Calendar = {id: string; title: string};
@@ -49,10 +50,6 @@ const statusOptions = [
 	{value: 'no', label: 'No'},
 ];
 
-function formatTime(date: Date): string {
-	return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-}
-
 function formatDate(timestamp: Date): string {
 	return timestamp.toLocaleString(undefined, {
 		year: 'numeric',
@@ -61,6 +58,222 @@ function formatDate(timestamp: Date): string {
 		hour: '2-digit',
 		minute: '2-digit',
 	});
+}
+
+function SlotsList({
+	slots, originalSlots, calendarStatuses, getIntersectingEvents, onSlotStatusChange, onResetSlot,
+}: {
+	slots: CalendarSlot[];
+	originalSlots: CalendarSlot[];
+	calendarStatuses: Record<string, OptionsCalendarStatus>;
+	getIntersectingEvents: (slot: CalendarSlot) => CalendarEvent[];
+	onSlotStatusChange: (id: string, status: CalendarSlot['status']) => void;
+	onResetSlot: (id: string) => void;
+}) {
+	return (
+	<div className='space-y-4'>
+		{slots.map(slot => {
+			const intersectingEvents = getIntersectingEvents(slot);
+			const overriddenStyle = slot.overridden ? 'border-4 border-purple-500' : 'border';
+			const originalSlot = originalSlots.find(s => s.id === slot.id);
+			return (
+				<div key={slot.id} className={`${overriddenStyle} rounded p-4 ${statusColors[slot.status]}`}>
+					<div className='flex justify-between items-start'>
+						<div>
+							{originalSlot?.label && (
+								<p className='font-bold text-base mb-1'>{originalSlot.label}</p>
+							)}
+							<p className='font-medium'>{formatDate(slot.startDate)} - {formatDate(slot.endDate)}</p>
+							<p className='text-sm'>Status: {slot.status} {slot.overridden && '(overridden)'}</p>
+						</div>
+						<div className='flex space-x-2'>
+							<select
+								value={slot.status}
+								onChange={event => {
+									onSlotStatusChange(slot.id, event.target.value as CalendarSlot['status']);
+								}}
+								className='bg-white border rounded p-1 text-sm'
+							>
+								{statusOptions.map(option => (
+									<option key={option.value} value={option.value}>{option.label}</option>
+								))}
+							</select>
+							{slot.overridden && (
+								<button
+									onClick={() => {
+										onResetSlot(slot.id);
+									}}
+									className='bg-gray-200 hover:bg-gray-300 px-2 rounded text-sm'
+									title='Reset to calculated status'
+								>
+									↺
+								</button>
+							)}
+						</div>
+					</div>
+
+					{intersectingEvents.length > 0 && (
+						<div className='mt-3'>
+							<p className='text-sm font-medium mb-1'>Intersecting Events:</p>
+							<ul className='space-y-1'>
+								{intersectingEvents.map(event => {
+									const calendarIsOff = (calendarStatuses[event.calendarId] || 'off') === 'off';
+									const textStyle = calendarIsOff ? 'text-gray-500 line-through' : '';
+									return (
+										<li key={event.id} className={`text-sm pl-2 border-l-2 border-gray-300 ${textStyle}`}>
+											<div>{event.title} ({event.status})</div>
+											<div>{formatDate(event.startDate)} - {formatDate(event.endDate)}</div>
+										</li>
+									);
+								})}
+							</ul>
+						</div>
+					)}
+				</div>
+			);
+		})}
+	</div>
+	);
+}
+
+const viewButtonStyle = (isActive: boolean): CSSProperties => ({
+	padding: '6px 12px',
+	fontSize: '13px',
+	fontWeight: '600',
+	backgroundColor: isActive ? '#2563eb' : '#e5e7eb',
+	color: isActive ? 'white' : '#374151',
+	border: 'none',
+	borderRadius: '6px',
+	cursor: 'pointer',
+});
+
+function SlotsSection({
+	slots, originalSlots, events, calendarStatuses, supportedStatuses, getCalendarName, getIntersectingEvents, onSlotStatusChange, onResetSlot, onEventStatusChange, onResetEvent,
+}: {
+	slots: CalendarSlot[];
+	originalSlots: CalendarSlot[];
+	events: CalendarEvent[];
+	calendarStatuses: Record<string, OptionsCalendarStatus>;
+	supportedStatuses: Array<CalendarSlot['status']>;
+	getCalendarName: (calendarId: string) => string;
+	getIntersectingEvents: (slot: CalendarSlot) => CalendarEvent[];
+	onSlotStatusChange: (id: string, status: CalendarSlot['status']) => void;
+	onResetSlot: (id: string) => void;
+	onEventStatusChange: (id: string, status: CalendarStatus, applyToSeries: boolean) => void;
+	onResetEvent: (id: string, applyToSeries: boolean) => void;
+}) {
+	const [slotsView, setSlotsView] = React.useState<'calendar' | 'list'>('calendar');
+
+	return (
+	<div className='bg-white p-6 rounded-lg shadow'>
+		<div style={{
+			display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px',
+		}}>
+			<h2 className='text-xl font-semibold'>Time Slots</h2>
+			<div style={{display: 'flex', gap: '6px'}}>
+				<button
+					style={viewButtonStyle(slotsView === 'calendar')}
+					onClick={() => {
+						setSlotsView('calendar');
+					}}
+				>
+					📅 Calendar
+				</button>
+				<button
+					style={viewButtonStyle(slotsView === 'list')}
+					onClick={() => {
+						setSlotsView('list');
+					}}
+				>
+					☰ List
+				</button>
+			</div>
+		</div>
+
+		{slotsView === 'calendar' && (
+			<>
+				<p className='text-sm text-gray-600 mb-3'>
+					Each day shows calendar events on the left and poll slots as dashed colour bars on the
+					right, on a shared time axis. Hover anything for details. Click to cycle a status —
+					on a repeating event that changes the whole series, shift-click just that occurrence.
+				</p>
+				<CalendarSlotsView
+					slots={slots}
+					events={events}
+					calendarStatuses={calendarStatuses}
+					supportedStatuses={supportedStatuses}
+					getCalendarName={getCalendarName}
+					onSlotStatusChange={onSlotStatusChange}
+					onResetSlot={onResetSlot}
+					onEventStatusChange={onEventStatusChange}
+					onResetEvent={onResetEvent}
+				/>
+				<div style={{
+					display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '12px', fontSize: '11px', color: '#4b5563',
+				}}>
+					{statusOptions.map(option => (
+						<span key={option.value} style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+							<span style={{
+								width: '12px',
+								height: '12px',
+								borderRadius: '3px',
+								display: 'inline-block',
+								backgroundColor: statusPalette[option.value as CalendarStatus].bg,
+								border: `1px solid ${statusPalette[option.value as CalendarStatus].border}`,
+							}}/>
+							{option.label}
+						</span>
+					))}
+					<span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+						<span style={{
+							width: '12px',
+							height: '12px',
+							borderRadius: '3px',
+							display: 'inline-block',
+							backgroundColor: '#fff',
+							border: '1px dashed #6b7280',
+						}}/>
+						Poll slot (dashed)
+					</span>
+					<span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+						<span style={{
+							width: '12px',
+							height: '12px',
+							borderRadius: '3px',
+							display: 'inline-block',
+							backgroundColor: offPalette.bg,
+							border: `1px solid ${offPalette.border}`,
+						}}/>
+						Calendar off (ignored)
+					</span>
+					<span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+						<span style={{
+							width: '12px',
+							height: '12px',
+							borderRadius: '3px',
+							display: 'inline-block',
+							border: '2px solid #a855f7',
+						}}/>
+						Overridden
+					</span>
+					<span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>🔁 Repeating event</span>
+					<span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>🔂 Occurrences differ</span>
+				</div>
+			</>
+		)}
+
+		{slotsView === 'list' && (
+			<SlotsList
+				slots={slots}
+				originalSlots={originalSlots}
+				calendarStatuses={calendarStatuses}
+				getIntersectingEvents={getIntersectingEvents}
+				onSlotStatusChange={onSlotStatusChange}
+				onResetSlot={onResetSlot}
+			/>
+		)}
+	</div>
+	);
 }
 
 function TimeSlotManager({
@@ -240,8 +453,6 @@ function TimeSlotManager({
 		setSlots(slots.map(slot => ({...slot, overridden: false})));
 	};
 
-	const eventGroupKey = (event: CalendarEvent) => `${event.title}\0${event.calendarId}`;
-
 	const handleEventStatusChange = (id: string, status: CalendarSlot['status']) => {
 		setEvents(events.map(event =>
 			event.id === id ? {...event, status, overridden: true} : event));
@@ -250,6 +461,26 @@ function TimeSlotManager({
 	const handleResetEvent = (id: string) => {
 		setEvents(events.map(event =>
 			event.id === id ? {...event, overridden: false} : event));
+	};
+
+	/**
+	 * A recurring event reaches us as one CalendarEvent per occurrence, so an edit
+	 * has to say whether it means the whole series or just the occurrence clicked.
+	 */
+	const inScope = (id: string, applyToSeries: boolean) => {
+		const target = events.find(event => event.id === id);
+		const key = target && eventGroupKey(target);
+		return (event: CalendarEvent) => applyToSeries ? eventGroupKey(event) === key : event.id === id;
+	};
+
+	const handleScopedEventStatusChange = (id: string, status: CalendarSlot['status'], applyToSeries: boolean) => {
+		const matches = inScope(id, applyToSeries);
+		setEvents(events.map(event => matches(event) ? {...event, status, overridden: true} : event));
+	};
+
+	const handleScopedResetEvent = (id: string, applyToSeries: boolean) => {
+		const matches = inScope(id, applyToSeries);
+		setEvents(events.map(event => matches(event) ? {...event, overridden: false} : event));
 	};
 
 	const handleResetAllEvents = () => {
@@ -287,7 +518,7 @@ function TimeSlotManager({
 		left: '10px', // Small offset from left
 
 		width: '100%',
-		maxWidth: '450px',
+		maxWidth: activeTab === 'slots' ? '900px' : '450px',
 		height: '100%',
 		zIndex: '9999',
 
@@ -589,71 +820,19 @@ e.currentTarget.style.backgroundColor = '#3b82f6';
 						)}
 
 						{/* Slots list */}
-						<div className='bg-white p-6 rounded-lg shadow'>
-							<h2 className='text-xl font-semibold mb-4'>Time Slots</h2>
-							<div className='space-y-4'>
-								{computedSlots.map(slot => {
-									const intersectingEvents = getIntersectingEvents(slot);
-									const overriddenStyle = slot.overridden ? 'border-4 border-purple-500' : 'border';
-									const originalSlot = slots.find(s => s.id === slot.id);
-									return (
-										<div key={slot.id} className={`${overriddenStyle} rounded p-4 ${statusColors[slot.status]}`}>
-											<div className='flex justify-between items-start'>
-												<div>
-													{originalSlot?.label && (
-														<p className='font-bold text-base mb-1'>{originalSlot.label}</p>
-													)}
-													<p className='font-medium'>{formatDate(slot.startDate)} - {formatDate(slot.endDate)}</p>
-													<p className='text-sm'>Status: {slot.status} {slot.overridden && '(overridden)'}</p>
-												</div>
-												<div className='flex space-x-2'>
-													<select
-														value={slot.status}
-														onChange={event => {
-															handleSlotStatusChange(slot.id, event.target.value as CalendarSlot['status']);
-														}}
-														className='bg-white border rounded p-1 text-sm'
-													>
-														{statusOptions.map(option => (
-															<option key={option.value} value={option.value}>{option.label}</option>
-														))}
-													</select>
-													{slot.overridden && (
-														<button
-															onClick={() => {
-																handleResetSlot(slot.id);
-															}}
-															className='bg-gray-200 hover:bg-gray-300 px-2 rounded text-sm'
-															title='Reset to calculated status'
-														>
-															↺
-														</button>
-													)}
-												</div>
-											</div>
-
-											{intersectingEvents.length > 0 && (
-												<div className='mt-3'>
-													<p className='text-sm font-medium mb-1'>Intersecting Events:</p>
-													<ul className='space-y-1'>
-														{intersectingEvents.map(event => {
-															const calendarIsOff = (calendarStatuses[event.calendarId] || 'off') === 'off';
-															const textStyle = calendarIsOff ? 'text-gray-500 line-through' : '';
-															return (
-																<li key={event.id} className={`text-sm pl-2 border-l-2 border-gray-300 ${textStyle}`}>
-																	<div>{event.title} ({event.status})</div>
-																	<div>{formatDate(event.startDate)} - {formatDate(event.endDate)}</div>
-																</li>
-															);
-														})}
-													</ul>
-												</div>
-											)}
-										</div>
-									);
-								})}
-							</div>
-						</div>
+						<SlotsSection
+							slots={computedSlots}
+							originalSlots={slots}
+							events={computedEvents}
+							calendarStatuses={calendarStatuses}
+							supportedStatuses={supportedStatuses}
+							getCalendarName={getCalendarName}
+							getIntersectingEvents={getIntersectingEvents}
+							onSlotStatusChange={handleSlotStatusChange}
+							onResetSlot={handleResetSlot}
+							onEventStatusChange={handleScopedEventStatusChange}
+							onResetEvent={handleScopedResetEvent}
+						/>
 					</div>
 				</div>
 			)}
