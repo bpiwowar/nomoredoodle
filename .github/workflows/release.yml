@@ -9,7 +9,33 @@ name: Release
 on:
   workflow_dispatch: null
 jobs:
+  Bridge:
+    name: Build (macOS bridge)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the universal calendar bridge
+        working-directory: bridge
+        run: |
+          # macOS 14 is the floor: EventKit's requestFullAccessToEvents needs it.
+          for arch in arm64 x86_64; do
+            swiftc -O -framework EventKit \
+              -target "$arch-apple-macos14" \
+              calendar-bridge.swift -o "calendar-bridge-$arch"
+          done
+          lipo -create -output calendar-bridge calendar-bridge-arm64 calendar-bridge-x86_64
+          lipo -info calendar-bridge
+          # Ad-hoc signature: not notarized, but keeps macOS from killing the
+          # binary outright once the user clears the quarantine attribute.
+          codesign --force --sign - calendar-bridge
+          # Zip here so the executable bit survives the artifact round-trip.
+          zip -j calendar-bridge-macos.zip calendar-bridge
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bridge
+          path: bridge/calendar-bridge-macos.zip
   Version:
+    needs: Bridge
     outputs:
       created: ${{ env.DAILY_VERSION_CREATED }}
     permissions:
@@ -38,6 +64,11 @@ jobs:
         with:
           name: distribution
           path: distribution
+      - name: Download the macOS bridge
+        if: env.DAILY_VERSION_CREATED
+        uses: actions/download-artifact@v4
+        with:
+          name: bridge
       - name: Create release
         if: env.DAILY_VERSION_CREATED
         env:
@@ -51,6 +82,9 @@ jobs:
             (cd "$browser" && zip -r "$root/$filename" ./*)
             assets+=("$filename")
           done
+          bridge="calendar-bridge-macos-$DAILY_VERSION.zip"
+          mv calendar-bridge-macos.zip "$bridge"
+          assets+=("$bridge")
           gh release create "$DAILY_VERSION" --generate-notes "${assets[@]}"
   # Chrome:
   #   if: needs.Version.outputs.created

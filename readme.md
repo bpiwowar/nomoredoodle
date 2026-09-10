@@ -28,7 +28,7 @@ You choose which calendars are consulted, and what each one means: a calendar ca
 
 Calendars come from two places, and you can use either or both:
 
-- **macOS calendars.** Whatever the Calendar app already syncs - iCloud, Exchange, Google and the rest - read locally through a small native bridge that talks to the EventKit framework. The bridge is installed separately; see the project homepage for the one command that builds it.
+- **macOS calendars.** Whatever the Calendar app already syncs - iCloud, Exchange, Google and the rest - read locally through a small native bridge that talks to the EventKit framework. The bridge is installed separately; see the project homepage for the download.
 - **CalDAV accounts.** Any server that speaks CalDAV: Nextcloud, Baikal, Radicale, iCloud, Fastmail and others. Add one from the extension's options page, which tells you where your provider issues app-specific passwords and checks the connection before you rely on it. The password is stored on your own computer and never in browser sync.
 
 Nothing is sent anywhere except to your own CalDAV server, if you configure one. There is no account to create and no service in the middle.
@@ -41,14 +41,25 @@ Based on the [browser extension template](https://github.com/fregante/browser-ex
 
 ### macOS calendars
 
-Reading the macOS Calendar app needs a native bridge, which is not shipped as a binary. From the
-`bridge` directory:
+Reading the macOS Calendar app needs a native bridge, a small command-line binary that talks to
+EventKit. Every [release](https://github.com/bpiwowar/nomoredoodle/releases) ships one as
+`calendar-bridge-macos-<version>.zip` - a universal build for Apple silicon and Intel, macOS 14 or
+later. It is signed only ad hoc, not notarized, so macOS quarantines it on download and you have to
+say that you trust it:
+
+```sh
+unzip calendar-bridge-macos-*.zip
+xattr -d com.apple.quarantine calendar-bridge
+```
+
+To build it yourself instead, from the `bridge` directory:
 
 ```sh
 swiftc -framework EventKit calendar-bridge.swift -o calendar-bridge
 ```
 
-Move the binary wherever you want to keep it, then register it for your browsers:
+Move the binary wherever you want to keep it - the registration below records the path it is at -
+then register it for your browsers:
 
 ```sh
 ./calendar-bridge --register            # all of them
