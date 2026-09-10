@@ -269,7 +269,9 @@ as repository secrets before it can be switched on. Firefox submission uses `WEB
 `WEB_EXT_API_SECRET` from [AMO](https://addons.mozilla.org/en-US/developers/addon/api/key/), set in the `Firefox` environment.
 
 The store listing text is not edited on AMO: `helpers/amo-update.py` pushes the section of this
-readme between the `amo:start` and `amo:end` markers, along with the screenshots above.
+readme between the `amo:start` and `amo:end` markers, along with the screenshots above. The one-line
+summary under the add-on name comes from the `description` of `source/manifest.json` instead, since
+AMO resets the summary to the manifest's every time a version is submitted.
 
 
 ## License

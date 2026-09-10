@@ -6,15 +6,19 @@
 #     "requests>=2.31",
 # ]
 # ///
-"""Update the addons.mozilla.org listing from readme.md.
+"""Update the addons.mozilla.org listing from the repository.
 
-Everything published comes from the readme, so there is only one copy of it:
+Everything published comes from the repository, so there is only one copy of it:
 
   * the description is the text between the <!-- amo:start --> and
-    <!-- amo:end --> markers, converted from markdown to the plain text AMO
-    accepts;
-  * the screenshots are the images of the "## Screenshots" section, uploaded in
-    the order they appear, captioned with their alt text.
+    <!-- amo:end --> markers of readme.md, converted from markdown to the plain
+    text AMO accepts;
+  * the summary - the one line under the add-on name - is the "description" of
+    source/manifest.json. Not the readme, because AMO takes the summary from
+    the manifest whenever a version is submitted: any other wording here would
+    last until the next release and then silently revert;
+  * the screenshots are the images of the readme's "## Screenshots" section,
+    uploaded in the order they appear, captioned with their alt text.
 
 Run it from the repository root, so the screenshot paths resolve:
 
@@ -36,6 +40,7 @@ API keys: https://addons.mozilla.org/en-US/developers/addon/api/key/
 """
 import argparse
 import html
+import json
 import os
 import pathlib
 import random
@@ -51,6 +56,8 @@ SLUG = "no-more-doodle-extension"
 BASE = f"https://addons.mozilla.org/api/v5/addons/addon/{SLUG}"
 LANG = "en-US"
 README = pathlib.Path("readme.md")
+MANIFEST = pathlib.Path("source/manifest.json")
+SUMMARY_MAX = 250  # AMO rejects a longer summary
 
 IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
 LINK = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
@@ -90,6 +97,20 @@ def get_description(markdown):
     if not description:
         sys.exit(f"The amo:start/amo:end section of {README} is empty.")
     return description
+
+
+def get_summary():
+    """The one-line pitch, read from the manifest the stores are given."""
+    if not MANIFEST.is_file():
+        sys.exit(f"No {MANIFEST} here - run this from the repository root.")
+    summary = json.loads(MANIFEST.read_text(encoding="utf-8")).get("description", "")
+    summary = summary.strip()
+    if not summary:
+        sys.exit(f'{MANIFEST} has no "description" to use as the summary.')
+    if len(summary) > SUMMARY_MAX:
+        sys.exit(f"The {MANIFEST} description is {len(summary)} characters; "
+                 f"AMO caps the summary at {SUMMARY_MAX}.")
+    return summary
 
 
 def get_screenshots(markdown):
@@ -173,6 +194,7 @@ def show():
     print("slug           :", addon.get("slug"))
     print("is_experimental:", addon.get("is_experimental"))
     print("screenshots    :", len(addon.get("previews") or []))
+    print("summary        :", (addon.get("summary") or {}).get(LANG))
     print("description    :", (addon.get("description") or {}).get(LANG))
 
 
@@ -254,6 +276,7 @@ def main():
 
     markdown = read_readme()
     description = get_description(markdown)
+    summary = get_summary()
     screenshots = get_screenshots(markdown)
 
     if args.print_only:
@@ -263,16 +286,19 @@ def main():
     addon = get_addon()
     previews = addon.get("previews") or []
     live = (addon.get("description") or {}).get(LANG)
+    live_summary = (addon.get("summary") or {}).get(LANG)
     metadata_current = (
         not args.force
         and addon.get("is_experimental") is False
         and comparable(live) == comparable(description)
+        and comparable(live_summary) == comparable(summary)
     )
 
     if not args.apply:
         note = " (already set)" if metadata_current else ""
         print("DRY RUN - nothing sent. Would apply to", SLUG)
         print(f"  is_experimental -> False{note}")
+        print(f"  summary         -> {summary}{note}")
         print(f"  description     -> {len(description)} chars from {README}{note}")
         if args.replace_screenshots:
             todo = screenshots
@@ -299,7 +325,11 @@ def main():
         resp = send(
             "PATCH",
             f"{BASE}/",
-            json={"is_experimental": False, "description": {LANG: description}},
+            json={
+                "is_experimental": False,
+                "summary": {LANG: summary},
+                "description": {LANG: description},
+            },
         )
         print("PATCH metadata:", resp.status_code)
         if not resp.ok:
