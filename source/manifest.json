@@ -84,6 +84,18 @@
 		},
 		{
 			"matches": [
+				"*://timeful.app/e/*"
+			],
+			"js": [
+				"sites/timeful-page.ts"
+			],
+			"css": [
+			],
+			"run_at": "document_end",
+			"world": "MAIN"
+		},
+		{
+			"matches": [
 				"*://app.rallly.co/invite/*",
 				"*://app.rallly.co/poll/*"
 			],

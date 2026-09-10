@@ -2,6 +2,12 @@ import {createApp} from '../calendar-app.js';
 import {type CalendarEvent, type CalendarSlot} from '../events.js';
 import {browserAPI} from '../browser-compat.js';
 import {ApiFormFiller} from './form-filler.js';
+import {
+	TIMEFUL_REFRESH_REQUEST,
+	TIMEFUL_REFRESH_RESPONSE,
+	type TimefulRefreshRequest,
+	type TimefulRefreshResponse,
+} from './timeful-messages.js';
 
 /**
  * Timeful (timeful.app, formerly schej.it) support.
@@ -33,6 +39,12 @@ import {ApiFormFiller} from './form-filler.js';
  * flat array of UTC `timeIncrement`-aligned slot-start timestamps, matching the
  * shape Timeful's own save uses.
  *
+ * REFRESHING — because the write never goes through Timeful's Vue app, the
+ * rendered grid stays stale after a successful save (it only catches up on a
+ * page reload). We ask the page-world bridge (`timeful-page.ts`)
+ * to call the `Event` component's own `refreshEvent()`, and reload the page
+ * ourselves when the bridge cannot reach it.
+ *
  * {@link TimefulFormFiller} subclasses the generic {@link ApiFormFiller}: the
  * base owns the non-click "build grid then batch-fill" contract; this class
  * owns the schej-specific REST shape.
@@ -50,6 +62,9 @@ type TimefulEvent = {
 	times?: unknown;
 	collectEmails?: boolean; // Whether a guest must provide an email
 };
+
+// How long we wait for the page-world bridge before reloading instead.
+const REFRESH_TIMEOUT_MS = 2000;
 
 // Stored across fills so a guest only types their details once.
 const GUEST_NAME_KEY = 'timefulGuestName';
@@ -93,6 +108,50 @@ class TimefulFormFiller extends ApiFormFiller {
 
 		console.log(`Filling Timeful: ${availability.length} available, ${ifNeeded.length} if-needed`);
 		await this.submitResponse(availability, ifNeeded);
+		await this.refreshView();
+	}
+
+	/**
+	 * Make the saved response visible: ask the page-world bridge to refresh
+	 * Timeful's own view, and reload the page if it cannot (no bridge, or the
+	 * Vue internals moved). Without this the grid keeps showing the previous
+	 * answer until the user reloads by hand.
+	 */
+	private async refreshView(): Promise<void> {
+		if (await this.requestViewRefresh()) {
+			return;
+		}
+
+		console.log('Timeful: falling back to a page reload to show the saved response');
+		globalThis.location.reload();
+	}
+
+	/** Ask the page-world bridge to refresh, resolving to false on timeout. */
+	private async requestViewRefresh(): Promise<boolean> {
+		const id = globalThis.crypto.randomUUID();
+
+		return new Promise<boolean>(resolve => {
+			const timeout = globalThis.setTimeout(() => {
+				finish(false);
+			}, REFRESH_TIMEOUT_MS);
+
+			const onMessage = (event: MessageEvent) => {
+				const data = event.data as TimefulRefreshResponse | undefined;
+				if (event.source === globalThis.window && data?.type === TIMEFUL_REFRESH_RESPONSE && data.id === id) {
+					finish(data.refreshed);
+				}
+			};
+
+			const finish = (refreshed: boolean) => {
+				globalThis.clearTimeout(timeout);
+				globalThis.removeEventListener('message', onMessage);
+				resolve(refreshed);
+			};
+
+			globalThis.addEventListener('message', onMessage);
+			const request: TimefulRefreshRequest = {type: TIMEFUL_REFRESH_REQUEST, id};
+			globalThis.postMessage(request, globalThis.location.origin);
+		});
 	}
 
 	/**
