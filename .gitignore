@@ -18,3 +18,6 @@ __pycache__/
 
 # the native bridge is built locally or downloaded from a release
 bridge/calendar-bridge
+
+# built screenshot harness, rebuilt by "npm run screenshots"
+.screenshots

@@ -143,9 +143,15 @@ The same slots as a list, with the events that clash with each one spelled out.
 
 ![The list view, showing each slot with its computed status and its intersecting events](media/list.png)
 
-Each calendar gets a status, which decides what its events do to a slot.
+Each calendar gets a status, which decides what its events do to a slot. Sources can be switched off
+whole.
 
-![The calendar selection tab, with calendars grouped by provider and a status legend](media/calendars-tab.png)
+![The calendar picker, with macOS and CalDAV calendars grouped by source, each showing what its events mean for a slot](media/calendars-tab.png)
+
+The options page is where accounts live: the bridge's status, the CalDAV servers to read, and the
+same per-calendar statuses.
+
+![The options page, showing the native bridge status, a CalDAV account and the calendar statuses](media/options.png)
 
 ## Development
 
@@ -258,7 +264,8 @@ Releases are manual: open the Actions tab and run the
    [daily-version-action](https://github.com/fregante/daily-version-action), and write it into each
    built `manifest.json`. **There is no version to bump by hand**; the one in
    `source/manifest.json` is only a placeholder for local builds;
-3. tag the commit, create a GitHub release, and attach a zip per browser;
+3. tag the commit, create a GitHub release, and attach a zip per browser plus the macOS calendar
+   bridge, built as a universal binary by the `Bridge` job;
 4. sign and submit the Firefox package to AMO.
 
 The workflow stops at step 2 if no commits have landed since the last tag.
@@ -272,6 +279,21 @@ The store listing text is not edited on AMO: `helpers/amo-update.py` pushes the 
 readme between the `amo:start` and `amo:end` markers, along with the screenshots above. The one-line
 summary under the add-on name comes from the `description` of `source/manifest.json` instead, since
 AMO resets the summary to the manifest's every time a version is submitted.
+
+The screenshots themselves are generated rather than taken:
+
+```sh
+npm run screenshots
+```
+
+That builds `helpers/screenshots/` — the real overlay and options page mounted against a stand-in
+background worker, a made-up poll and a fixed week of invented calendar events — and photographs
+them with a headless Chrome at 1280x800, straight into `media/`. Regenerate them whenever one of
+those screens changes. Nobody's calendar ends up in the store listing that way, and because the
+fixtures never move, a re-run rewrites a PNG only if the interface really did change.
+
+`amo-update.py` matches existing screenshots by position and leaves them alone, so after
+regenerating them run it once with `--apply --replace-screenshots` to put the new images up.
 
 
 ## License

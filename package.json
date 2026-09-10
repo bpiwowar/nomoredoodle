@@ -18,6 +18,9 @@
 		"watch:chrome": "NODE_NO_WARNINGS=1 parcel watch --target chrome --cache-dir .parcel-cache/chrome --no-hmr",
 		"watch:firefox": "NODE_NO_WARNINGS=1 parcel watch --target firefox --cache-dir .parcel-cache/firefox --no-hmr",
 		"watch:tsc": "tsc --noEmit --watch",
+		"screenshots": "run-s build:tailwind-ts screenshots:build screenshots:capture",
+		"screenshots:build": "NODE_NO_WARNINGS=1 parcel build --target screenshots --cache-dir .parcel-cache/screenshots",
+		"screenshots:capture": "node helpers/screenshots/capture.mjs",
 		"prepare": "husky"
 	},
 	"browserslist": [
@@ -116,6 +119,15 @@
 		"firefox": {
 			"source": "source/firefox/manifest.json",
 			"distDir": "./distribution/firefox"
+		},
+		"screenshots": {
+			"source": [
+				"helpers/screenshots/overlay.html",
+				"helpers/screenshots/options.html"
+			],
+			"distDir": "./.screenshots",
+			"publicUrl": "./",
+			"optimize": false
 		}
 	},
 	"webExt": {
