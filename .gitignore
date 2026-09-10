@@ -12,3 +12,6 @@ CLAUDE.md
 # per-browser manifests, generated from source/manifest.json
 source/chrome/
 source/firefox/
+
+# Python bytecode from helpers/
+__pycache__/

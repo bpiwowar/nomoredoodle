@@ -10,7 +10,7 @@
 	"browser_specific_settings": {
 		"gecko": {
 			"id": "no-more-doodle@piwowarski.fr",
-			"strict_min_version": "109.0",
+			"strict_min_version": "128.0",
 			"data_collection_permissions": {
 				"required": ["none"]
 			}
@@ -27,6 +27,9 @@
 		"tabs",
 		"activeTab",
 		"notifications"
+	],
+	"optional_host_permissions": [
+		"*://*/*"
 	],
 	"host_permissions": [
 		"*://doodle.com/*",
@@ -111,6 +114,10 @@
 		"service_worker": "background.ts",
 		"scripts": ["background.ts"],
 		"type": "module"
+	},
+	"options_ui": {
+		"page": "options.html",
+		"open_in_tab": true
 	},
 	"action": {
 		"default_title": "Open Time Slot Manager"

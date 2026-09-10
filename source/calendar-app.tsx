@@ -2,39 +2,15 @@ import React, {type CSSProperties, useMemo, useEffect} from 'react';
 import {createRoot, type Root} from 'react-dom/client';
 import {tailwindCSS} from './tailwind-css.js';
 import {
-	type CalendarSlot, type CalendarEvent, type CalendarStatus, calculateSlotStatus, doRangesIntersect, type OptionsCalendarStatus, type SelectedCalendars, formatTime, eventGroupKey,
+	type CalendarSlot, type CalendarEvent, type CalendarStatus, calculateSlotStatus, doRangesIntersect, type OptionsCalendarStatus, formatTime, eventGroupKey,
 } from './events.js';
 import {CalendarSlotsView, statusPalette, offPalette} from './calendar-view.js';
 import {browserAPI} from './browser-compat.js';
-
-type Calendar = {id: string; title: string};
-type CalendarsGrouped = Record<string, Calendar[]>;
-
-const Statuses: OptionsCalendarStatus[] = ['off', 'if-need-be', 'could-be', 'no', 'yes'];
-
-function nextStatus(status: OptionsCalendarStatus): OptionsCalendarStatus {
-	const index = Statuses.indexOf(status);
-	return Statuses[(index + 1) % Statuses.length];
-}
-
-async function loadStatuses(): Promise<SelectedCalendars> {
-	const {selectedCalendars = {}} = await browserAPI.storage.local.get('selectedCalendars');
-	return selectedCalendars as SelectedCalendars;
-}
-
-async function saveStatuses(statuses: SelectedCalendars) {
-	await browserAPI.storage.local.set({selectedCalendars: statuses});
-}
-
-const statusIcon: Record<OptionsCalendarStatus, {icon: string; label: string}> = {
-	off: {icon: '⬜', label: 'Off'},
-	'if-need-be': {icon: '🟦', label: 'If need be'},
-	'could-be': {icon: '🟩', label: 'Could be'},
-	no: {icon: '❌', label: 'No'},
-	yes: {icon: '✅', label: 'Yes'},
-};
-
-const StatusIcon: React.FC<{status: OptionsCalendarStatus}> = ({status}) => <span title={statusIcon[status].label}>{statusIcon[status].icon}</span>;
+import {
+	CalendarSelection, CalendarsError, StatusIcon, Statuses, nextStatus, statusIcon,
+} from './calendar-selection.js';
+import {type SourceListing} from './calendars/types.js';
+import {loadCalendarStatuses, saveCalendarStatuses} from './calendars/settings.js';
 
 const statusColors = {
 	yes: 'bg-green-100 border-green-500 text-green-800',
@@ -58,31 +34,6 @@ function formatDate(timestamp: Date): string {
 		hour: '2-digit',
 		minute: '2-digit',
 	});
-}
-
-/** The native bridge failing is a setup problem, so its fix goes on screen with it. */
-function CalendarsError({message, hint}: {message: string; hint?: string}) {
-	return (
-		<div className='p-4 bg-red-100 border border-red-400 text-red-700 rounded'>
-			<strong>Error:</strong> {message}
-			{hint && (
-				<pre style={{
-					marginTop: '10px',
-					padding: '10px',
-					backgroundColor: '#fff',
-					border: '1px solid #fca5a5',
-					borderRadius: '4px',
-					fontSize: '11px',
-					lineHeight: '1.45',
-					whiteSpace: 'pre-wrap',
-					overflowWrap: 'anywhere',
-					color: '#7f1d1d',
-				}}>
-					{hint}
-				</pre>
-			)}
-		</div>
-	);
 }
 
 function SlotsList({
@@ -319,10 +270,9 @@ function TimeSlotManager({
 	const [error, setError] = React.useState<string | undefined>(undefined);
 	const [filling, setFilling] = React.useState<boolean>(false);
 	const [activeTab, setActiveTab] = React.useState<string>('slots');
-	const [calendars, setCalendars] = React.useState<CalendarsGrouped>({});
+	const [listings, setListings] = React.useState<SourceListing[]>([]);
 	const [calendarsLoading, setCalendarsLoading] = React.useState<boolean>(true);
 	const [calendarsError, setCalendarsError] = React.useState<string | undefined>(undefined);
-	const [calendarsHint, setCalendarsHint] = React.useState<string | undefined>(undefined);
 	const [calendarStatuses, setCalendarStatuses] = React.useState<Record<string, OptionsCalendarStatus>>({});
 	const [statusMapping, setStatusMapping] = React.useState<{
 		'could-be': CalendarSlot['status'];
@@ -347,36 +297,34 @@ function TimeSlotManager({
 		return mappings;
 	});
 
-	useEffect(() => {
-		(async () => {
-			try {
-				console.log('Loading calendars...');
-				setCalendarsLoading(true);
-				setCalendarsError(undefined);
-				setCalendarsHint(undefined);
+	/**
+	 * A failing source no longer empties the picker — `listings` carries the error
+	 * per source — so the only thing left at this level is a listing that could not
+	 * be produced at all.
+	 */
+	const loadCalendars = React.useCallback(async () => {
+		try {
+			setCalendarsLoading(true);
+			setCalendarsError(undefined);
+			const response = await (browserAPI.runtime.sendMessage as (message: any) => Promise<any>)({type: 'listCalendarSources'}) as {error?: string; listings?: SourceListing[]};
 
-				// Request calendars from background script
-				const response = await (browserAPI.runtime.sendMessage as (message: any) => Promise<any>)({type: 'getCalendars'}) as {error?: string; hint?: string; calendars?: CalendarsGrouped};
-
-				if (response.error) {
-					setCalendarsHint(response.hint);
-					throw new Error(response.error);
-				}
-
-				console.log('Calendars loaded:', response.calendars);
-				setCalendars(response.calendars || {});
-
-				const statuses = await loadStatuses();
-				console.log('Calendar statuses loaded:', statuses);
-				setCalendarStatuses(statuses);
-				setCalendarsLoading(false);
-			} catch (error) {
-				console.error('Error loading calendars:', error);
-				setCalendarsError((error as Error)?.message ?? 'Failed to load calendars');
-				setCalendarsLoading(false);
+			if (response.error) {
+				throw new Error(response.error);
 			}
-		})();
+
+			setListings(response.listings ?? []);
+			setCalendarStatuses(await loadCalendarStatuses());
+		} catch (error) {
+			console.error('Error loading calendars:', error);
+			setCalendarsError((error as Error)?.message ?? 'Failed to load calendars');
+		} finally {
+			setCalendarsLoading(false);
+		}
 	}, []);
+
+	useEffect(() => {
+		void loadCalendars();
+	}, [loadCalendars]);
 
 	// Determine if we're in restricted mode
 	const supportedStatuses = formOptions?.supportedStatuses ?? ['yes', 'could-be', 'if-need-be', 'no'];
@@ -519,10 +467,12 @@ function TimeSlotManager({
 
 	// Get calendar name from calendar ID
 	const getCalendarName = (calendarId: string): string => {
-		for (const [provider, cals] of Object.entries(calendars)) {
-			const cal = cals.find(c => c.id === calendarId);
-			if (cal) {
-				return `${cal.title} (${provider})`;
+		for (const listing of listings) {
+			for (const group of listing.groups) {
+				const calendar = group.calendars.find(candidate => candidate.id === calendarId);
+				if (calendar) {
+					return `${calendar.title} (${group.label})`;
+				}
 			}
 		}
 
@@ -537,7 +487,19 @@ function TimeSlotManager({
 		const newStatus = nextStatus(calendarStatuses[id] || 'off');
 		const newStatuses = {...calendarStatuses, [id]: newStatus};
 		setCalendarStatuses(newStatuses);
-		await saveStatuses(newStatuses);
+		await saveCalendarStatuses(newStatuses);
+	};
+
+	const handleToggleSource = async (sourceId: string, enabled: boolean) => {
+		setCalendarsLoading(true);
+		const response = await (browserAPI.runtime.sendMessage as (message: any) => Promise<any>)({type: 'setSourceEnabled', sourceId, enabled}) as {error?: string; listings?: SourceListing[]};
+		if (response.error) {
+			setCalendarsError(response.error);
+		} else {
+			setListings(response.listings ?? []);
+		}
+
+		setCalendarsLoading(false);
 	};
 
 	const style: CSSProperties = {
@@ -871,46 +833,37 @@ e.currentTarget.style.backgroundColor = '#3b82f6';
 					<div className='bg-white p-6 rounded-lg shadow'>
 						<h2 className='text-xl font-semibold mb-4'>Calendar Selection</h2>
 						<p className='text-sm text-gray-600 mb-4'>
-							Click on a calendar to cycle through statuses: Off → If Need Be → Could Be → No → Yes
+							Click on a calendar to cycle through statuses: Off → If Need Be → Could Be → No → Yes.
+							Untick a source to stop contacting it altogether.
 						</p>
-						{calendarsLoading
-? (
-							<div className='text-center text-gray-500 py-4'>
-								Loading calendars...
+						{calendarsError && (
+							<div className='mb-4'>
+								<CalendarsError message={calendarsError} onRetry={loadCalendars}/>
 							</div>
-						)
-: calendarsError
-? (
-							<CalendarsError message={calendarsError} hint={calendarsHint}/>
-						)
-: Object.keys(calendars).length === 0
-? (
-							<div className='text-center text-gray-500 py-4'>
-								No calendars found
-							</div>
-						)
-: (
-							<>
-								{Object.entries(calendars).map(([provider, cals]) => (
-									<div key={provider} className='mb-4'>
-										<div className='font-bold mb-2 text-lg text-gray-800'>{provider}</div>
-										{cals.map(cal => {
-											const status = calendarStatuses[cal.id] || 'off';
-											return (
-												<div
-													key={cal.id}
-													className='flex items-center gap-3 mb-2 p-3 hover:bg-gray-100 cursor-pointer rounded border border-gray-200'
-													onClick={async () => handleCalendarClick(cal.id)}
-												>
-													<StatusIcon status={status} />
-													<span className='text-base'>{cal.title}</span>
-												</div>
-											);
-										})}
-									</div>
-								))}
-							</>
 						)}
+						<CalendarSelection
+							listings={listings}
+							statuses={calendarStatuses}
+							loading={calendarsLoading}
+							onToggleSource={handleToggleSource}
+							onCycleCalendar={handleCalendarClick}
+							onRetry={loadCalendars}
+						/>
+
+						<div className='mt-4 text-sm'>
+							<button
+								type='button'
+								className='text-blue-600 hover:underline'
+								onClick={() => {
+									// The overlay lives in a content script, where a CalDAV password
+									// has no business being typed: the options page is an extension
+									// page, and only it can ask for access to a new server.
+									void (browserAPI.runtime.sendMessage as (message: any) => Promise<any>)({type: 'openOptionsPage'});
+								}}
+							>
+								Add or edit CalDAV accounts…
+							</button>
+						</div>
 
 						<div className='mt-6 pt-4 border-t border-gray-300'>
 							<div className='font-semibold mb-3 text-base'>Legend</div>
@@ -1014,7 +967,7 @@ position: 'sticky', top: 0, backgroundColor: 'white', borderBottom: '1px solid #
 																	const newStatus = e.target.value as OptionsCalendarStatus;
 																	const newStatuses = {...calendarStatuses, [event.calendarId]: newStatus};
 																	setCalendarStatuses(newStatuses);
-																	await saveStatuses(newStatuses);
+																	await saveCalendarStatuses(newStatuses);
 																}}
 																className='text-xs border rounded px-1 py-0.5'
 																onClick={e => {

@@ -32,9 +32,13 @@ type EventItem = {
 };
 
 export class NativeBridgeError extends Error {
-	constructor(message: string, readonly hint?: string) {
+	/** See CalDavError for why this is not a constructor parameter property. */
+	readonly hint?: string;
+
+	constructor(message: string, hint?: string) {
 		super(message);
 		this.name = 'NativeBridgeError';
+		this.hint = hint;
 	}
 }
 
@@ -68,6 +72,9 @@ function bridgeError(detail = ''): NativeBridgeError {
 			'  cd <your nomoredoodle checkout>/bridge',
 			'  swiftc -framework EventKit calendar-bridge.swift -o calendar-bridge',
 			`  ./calendar-bridge --register --chrome-id ${id}`,
+			'',
+			'The same steps, with the download, are on the extension options page and at',
+			'https://github.com/bpiwowar/nomoredoodle',
 		].join('\n'),
 	);
 }
