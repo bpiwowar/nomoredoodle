@@ -129,6 +129,11 @@ export async function davRequest(
 				Authorization: authorization(account),
 				Depth: depth,
 				'Content-Type': 'application/xml; charset=utf-8',
+				// Nextcloud lists subscriptions (calendars it pulls from an ICS URL)
+				// as bare `<cs:subscribed>` collections that hold no events, unless
+				// the client asks for its server-side cached copies, which are
+				// ordinary calendars. Other servers ignore the header.
+				'X-NC-CalDAV-Webcal-Caching': 'On',
 			},
 			body,
 			// Otherwise the browser attaches whatever session cookie the user has
