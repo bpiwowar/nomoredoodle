@@ -252,6 +252,31 @@ function SlotsSection({
 	);
 }
 
+function RefreshButton({refreshing, onRefresh}: {refreshing: boolean; onRefresh: () => Promise<void>}) {
+	return (
+		<button
+			onClick={() => {
+				void onRefresh();
+			}}
+			disabled={refreshing}
+			title='Fetch the calendars and their events again'
+			style={{
+				backgroundColor: refreshing ? '#93c5fd' : '#3b82f6',
+				color: 'white',
+				fontWeight: '600',
+				borderRadius: '8px',
+				fontSize: '14px',
+				padding: '8px 16px',
+				border: 'none',
+				cursor: refreshing ? 'not-allowed' : 'pointer',
+				boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+			}}
+		>
+			{refreshing ? '⏳ Refreshing...' : '⟳ Refresh'}
+		</button>
+	);
+}
+
 function TimeSlotManager({
 	slots: _slots,
 	events: _events,
@@ -325,6 +350,57 @@ function TimeSlotManager({
 	useEffect(() => {
 		void loadCalendars();
 	}, [loadCalendars]);
+
+	const [refreshing, setRefreshing] = React.useState<boolean>(false);
+	// Answers can come back out of order when calendars are switched in a row;
+	// only the latest request may replace the events.
+	const latestRefresh = React.useRef(0);
+
+	/**
+	 * The events came with the overlay, fetched for the calendars selected at that
+	 * time: a calendar switched on afterwards, or an event added since, needs a new
+	 * fetch. Events the user re-rated keep their answer.
+	 */
+	const refreshEvents = React.useCallback(async () => {
+		const request = ++latestRefresh.current;
+		setRefreshing(true);
+		try {
+			const startDate = new Date(Math.min(..._slots.map(slot => slot.startDate.getTime())));
+			const endDate = new Date(Math.max(..._slots.map(slot => slot.endDate.getTime())));
+			const response = await (browserAPI.runtime.sendMessage as (message: any) => Promise<any>)({
+				type: 'getEvents', startDate: startDate.toISOString(), endDate: endDate.toISOString(),
+			}) as {error?: string; events?: CalendarEvent[]};
+			if (response.error) {
+				throw new Error(response.error);
+			}
+
+			if (request !== latestRefresh.current) {
+				return;
+			}
+
+			setEvents(previous => {
+				const overrides = new Map(previous.filter(event => event.overridden).map(event => [event.id, event.status]));
+				return (response.events ?? []).map(event => ({
+					...event,
+					startDate: new Date(event.startDate),
+					endDate: new Date(event.endDate),
+					...(overrides.has(event.id) && {status: overrides.get(event.id)!, overridden: true}),
+				}));
+			});
+		} catch (error) {
+			console.error('Error refreshing events:', error);
+			setError(`Could not refresh the events: ${(error as Error)?.message ?? 'unknown error'}`);
+		} finally {
+			if (request === latestRefresh.current) {
+				setRefreshing(false);
+			}
+		}
+	}, [_slots]);
+
+	const handleRefresh = async () => {
+		setError(undefined);
+		await Promise.all([loadCalendars(), refreshEvents()]);
+	};
 
 	// Determine if we're in restricted mode
 	const supportedStatuses = formOptions?.supportedStatuses ?? ['yes', 'could-be', 'if-need-be', 'no'];
@@ -484,10 +560,16 @@ function TimeSlotManager({
 	};
 
 	const handleCalendarClick = async (id: string) => {
-		const newStatus = nextStatus(calendarStatuses[id] || 'off');
+		const oldStatus = calendarStatuses[id] || 'off';
+		const newStatus = nextStatus(oldStatus);
 		const newStatuses = {...calendarStatuses, [id]: newStatus};
 		setCalendarStatuses(newStatuses);
 		await saveCalendarStatuses(newStatuses);
+		// Events of a calendar that was off were never fetched; other changes
+		// only re-rate events already here.
+		if (oldStatus === 'off') {
+			await refreshEvents();
+		}
 	};
 
 	const handleToggleSource = async (sourceId: string, enabled: boolean) => {
@@ -500,6 +582,9 @@ function TimeSlotManager({
 		}
 
 		setCalendarsLoading(false);
+		if (!response.error) {
+			await refreshEvents();
+		}
 	};
 
 	const style: CSSProperties = {
@@ -559,6 +644,8 @@ function TimeSlotManager({
 				<h1 style={{
 fontSize: '24px', fontWeight: 'bold', color: '#1f2937', margin: 0,
 }}>Time Slot Manager</h1>
+				<div style={{display: 'flex', gap: '8px'}}>
+				<RefreshButton refreshing={refreshing} onRefresh={handleRefresh}/>
 				<button
 					onClick={() => {
 						setVisible(false);
@@ -583,6 +670,7 @@ fontSize: '24px', fontWeight: 'bold', color: '#1f2937', margin: 0,
 				>
 					✕ Hide
 				</button>
+				</div>
 			</div>
 		</div>
 
@@ -1025,6 +1113,8 @@ position: 'sticky', top: 0, backgroundColor: 'white', borderBottom: '1px solid #
 
 const wrapperDivId = 'no-more-doodle-dialog';
 let root: Root | undefined;
+/// Bumped on every run, so that filling again starts from the new slots and events instead of the old state.
+let runCount = 0;
 
 type FormOptions = {
 	supportedStatuses: Array<CalendarSlot['status']>;
@@ -1072,5 +1162,6 @@ export function createApp(
 		root = createRoot(wrapper);
 	}
 
-	root.render(<TimeSlotManager slots={slots} events={events} fillForm={fillForm} formOptions={formOptions}/>);
+	runCount++;
+	root.render(<TimeSlotManager key={runCount} slots={slots} events={events} fillForm={fillForm} formOptions={formOptions}/>);
 }

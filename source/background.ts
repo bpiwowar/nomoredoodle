@@ -56,30 +56,39 @@ async function fillSlots(tab_id: number) {
 	const startDate = new Date(response.startDate);
 	const endDate = new Date(response.endDate);
 
+	return browserAPI.tabs.sendMessage<TabMessage>(tab_id, {
+		type: 'runFill',
+		payload: await fetchEvents({startDate, endDate}),
+	});
+}
+
+/**
+ * The events of the selected calendars over a range, as the overlay expects
+ * them. Also answers the overlay's `getEvents`, so that switching a calendar on
+ * or adding an event shows up without reloading the page.
+ */
+async function fetchEvents(range: TimeRange) {
 	const selectedCalendars = await loadCalendarStatuses();
 
 	const selectedCount = Object.values(selectedCalendars).filter(status => status !== 'off').length;
-	console.log('Searching for events in range', startDate, endDate, `across ${selectedCount} selected calendar(s)`);
-	const events = await getEventsForSelection({startDate, endDate}, selectedCalendars);
+	console.log('Searching for events in range', range.startDate, range.endDate, `across ${selectedCount} selected calendar(s)`);
+	const events = await getEventsForSelection(range, selectedCalendars);
 	// No events and every calendar matching look identical from the outside, and
 	// the first of those answers "yes" to every slot — so the count is logged.
 	console.log(`Found ${events.length} event(s)`);
 
 	const offToYes = (status: OptionsCalendarStatus) => status === 'off' ? 'yes' : status;
-	return browserAPI.tabs.sendMessage<TabMessage>(tab_id, {
-		type: 'runFill',
-		payload: events.map(event => {
-			const bridgeStatus = event.status; // Original status from iCal availability
-			const calendarDefaultStatus = offToYes(selectedCalendars[event.calendarId] ?? 'off');
+	return events.map(event => {
+		const bridgeStatus = event.status; // Original status from iCal availability
+		const calendarDefaultStatus = offToYes(selectedCalendars[event.calendarId] ?? 'off');
 
-			// Just pass the raw data - let calendar-app handle the logic
-			return {
-				...event,
-				bridgeStatus, // Preserve original status from bridge
-				calendarDefaultStatus, // Store calendar's default status for reference
-				status: bridgeStatus, // Pass through the bridge status
-			};
-		}),
+		// Just pass the raw data - let calendar-app handle the logic
+		return {
+			...event,
+			bridgeStatus, // Preserve original status from bridge
+			calendarDefaultStatus, // Store calendar's default status for reference
+			status: bridgeStatus, // Pass through the bridge status
+		};
 	});
 }
 
@@ -276,6 +285,13 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 			await forgetSource(id);
 			return {removed: id};
 		});
+		return true; // Keep channel open for async response
+	}
+
+	if (message.type === 'getEvents') {
+		answer(sendResponse, async () => ({
+			events: await fetchEvents({startDate: new Date(message.startDate as string), endDate: new Date(message.endDate as string)}),
+		}));
 		return true; // Keep channel open for async response
 	}
 
