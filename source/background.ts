@@ -167,18 +167,28 @@ async function withStoredPassword(draft: CalDavAccount): Promise<CalDavAccount> 
 	return existing ? {...draft, password: existing.password} : draft;
 }
 
+/** URL fragments of the poll pages a content script can fill. */
+const supportedUrls = [
+	'doodle.com',
+	'evento.renater.fr/survey',
+	'framadate.org/polls',
+	'timeful.app/e/',
+	'app.rallly.co/invite/',
+	'app.rallly.co/poll/',
+	'when2meet.com/?',
+];
+
+function isSupportedUrl(url: string | undefined): boolean {
+	return supportedUrls.some(fragment => url?.includes(fragment));
+}
+
 browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	console.log('Got message', message);
 	if (message.type === 'checkSupportedPage') {
 		console.log('Checking if current page is supported');
 		browserAPI.tabs.query({active: true, currentWindow: true}, tabs => {
 			const tab = tabs[0];
-			const isSupported = Boolean(tab?.url?.includes('doodle.com')
-				|| tab?.url?.includes('evento.renater.fr/survey')
-				|| tab?.url?.includes('framadate.org/polls')
-				|| tab?.url?.includes('timeful.app/e/')
-				|| tab?.url?.includes('app.rallly.co/invite/')
-				|| tab?.url?.includes('app.rallly.co/poll/'));
+			const isSupported = isSupportedUrl(tab?.url);
 			sendResponse({supported: isSupported});
 			console.log(`Is supported: ${isSupported}`);
 		});
@@ -308,12 +318,7 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 browserAPI.action.onClicked.addListener(async tab => {
 	if (tab.id) {
 		// Check if page is supported
-		const isSupported = Boolean(tab?.url?.includes('doodle.com')
-			|| tab?.url?.includes('evento.renater.fr/survey')
-			|| tab?.url?.includes('framadate.org/polls')
-			|| tab?.url?.includes('timeful.app/e/')
-			|| tab?.url?.includes('app.rallly.co/invite/')
-			|| tab?.url?.includes('app.rallly.co/poll/'));
+		const isSupported = isSupportedUrl(tab?.url);
 
 		if (isSupported) {
 			// Trigger the overlay
@@ -335,7 +340,7 @@ browserAPI.action.onClicked.addListener(async tab => {
 			await browserAPI.notifications.create({
 				type: 'basic',
 				title: 'No More Doodle',
-				message: 'Navigate to a Doodle, Evento, Framadate, Timeful, or Rallly page to use this extension.',
+				message: 'Navigate to a Doodle, Evento, Framadate, Timeful, Rallly, or When2meet page to use this extension.',
 			iconUrl: notificationIcon,
 			});
 		}

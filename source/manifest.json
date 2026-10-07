@@ -2,7 +2,7 @@
 	"$schema": "https://json.schemastore.org/chrome-manifest",
 	"name": "No More Doodle extension",
 	"version": "26.8.26",
-	"description": "Fills in scheduling polls - Doodle, Evento, Framadate, Timeful, Rallly - from your macOS and CalDAV calendars",
+	"description": "Fills in scheduling polls - Doodle, Evento, Framadate, Timeful, Rallly, When2meet - from your macOS and CalDAV calendars",
 	"homepage_url": "https://github.com/bpiwowar/nomoredoodle",
 	"manifest_version": 3,
 	"minimum_chrome_version": "121",
@@ -37,7 +37,9 @@
 		"*://framadate.org/*",
 		"*://beta.framadate.org/*",
 		"*://timeful.app/*",
-		"*://app.rallly.co/*"
+		"*://app.rallly.co/*",
+		"*://www.when2meet.com/*",
+		"*://when2meet.com/*"
 	],
 	"content_scripts": [
 		{
@@ -104,6 +106,18 @@
 			],
 			"js": [
 				"sites/rallly.ts"
+			],
+			"css": [
+			],
+			"run_at": "document_end"
+},
+		{
+			"matches": [
+				"*://www.when2meet.com/*",
+				"*://when2meet.com/*"
+			],
+			"js": [
+				"sites/when2meet.ts"
 			],
 			"css": [
 			],

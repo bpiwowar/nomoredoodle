@@ -23,6 +23,7 @@ Supported scheduling sites:
 - [Framadate](https://framadate.org)
 - [Timeful](https://timeful.app)
 - [Rallly](https://app.rallly.co)
+- [When2meet](https://www.when2meet.com)
 
 You choose which calendars are consulted, and what each one means: a calendar can mark a slot as unavailable, as "if need be", or be ignored entirely. The most restrictive answer among the events overlapping a slot wins.
 
