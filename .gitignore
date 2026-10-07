@@ -21,3 +21,4 @@ bridge/calendar-bridge
 
 # built screenshot harness, rebuilt by "npm run screenshots"
 .screenshots
+.codegraph/
