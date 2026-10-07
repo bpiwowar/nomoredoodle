@@ -11,6 +11,8 @@ import {
 } from './calendar-selection.js';
 import {type SourceListing} from './calendars/types.js';
 import {loadCalendarStatuses, saveCalendarStatuses} from './calendars/settings.js';
+// Every site script imports this file, which is what lets the background show failures on the page.
+import './page-notice.js';
 
 const statusColors = {
 	yes: 'bg-green-100 border-green-500 text-green-800',

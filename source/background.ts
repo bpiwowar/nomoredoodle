@@ -11,6 +11,7 @@ import {
 	probeExpand, recordCheck, removeAccount, saveAccount, summarize,
 } from './calendars/caldav/index.js';
 import {browserAPI} from './browser-compat.js';
+import type {ShowErrorMessage} from './page-notice.js';
 
 type TabMessage = {type: 'get-range'} | {type: 'runFill'; payload: CalendarSlot[]};
 
@@ -22,15 +23,34 @@ type TabMessage = {type: 'get-range'} | {type: 'runFill'; payload: CalendarSlot[
  */
 const notificationIcon = browserAPI.runtime.getManifest().icons?.['128'] ?? '';
 
-/** Console warnings are invisible to users, so every failure gets a notification. */
-async function notifyError(title: string, error: unknown) {
+/**
+ * Console warnings are invisible to users, so every failure is reported: on the
+ * poll page when the tab's content script can show it, since system
+ * notifications are silenced whenever the OS does not let the browser notify,
+ * and as a notification otherwise.
+ */
+async function notifyError(title: string, error: unknown, tabId?: number) {
 	console.warn(title, error);
 	const hint = error instanceof NativeBridgeError ? error.hint : undefined;
 	const message = (error as Error)?.message ?? 'Unknown error';
+	const text = hint ? `${message}\n\n${hint}` : message;
+
+	if (tabId !== undefined) {
+		try {
+			const response = await browserAPI.tabs.sendMessage<ShowErrorMessage, {shown?: boolean} | undefined>(tabId, {type: 'showError', title, message: text});
+			if (response?.shown) {
+				return;
+			}
+		} catch (error) {
+			// No content script on that tab (yet): fall back to a notification.
+			console.warn('Could not show the error on the page', error);
+		}
+	}
+
 	await browserAPI.notifications.create({
 		type: 'basic',
 		title,
-		message: hint ? `${message}\n\n${hint}` : message,
+		message: text,
 		iconUrl: notificationIcon,
 	});
 }
@@ -316,7 +336,7 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
 					});
 					sendResponse({success: true});
 				} catch (error) {
-					await notifyError('Could not fill the poll', error);
+					await notifyError('Could not fill the poll', error, tabs[0].id);
 					sendResponse({success: false, error: (error as Error)?.message});
 				}
 			} else {
@@ -349,7 +369,7 @@ browserAPI.action.onClicked.addListener(async tab => {
 					});
 				})
 				.catch(async (error: unknown) => {
-					await notifyError('Could not fill the poll', error);
+					await notifyError('Could not fill the poll', error, tab.id);
 				});
 		} else {
 			// Show notification that page is not supported
